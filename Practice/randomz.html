@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <style>
+    .button-class {
+      background-color: #c21111;
+      border: none;
+      color: white;
+      padding: 15px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 12px;
+    }
+
+    .button-class:hover {
+      background-color: #860b0b;
+    }
+
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-around;
+      padding-left: 10vh;
+      
+    }
+    
+  </style>
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practice</title>
+  <link href="./style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="button-container">
+    <button class="button-class" id="button-id1">Button 1</button>
+    <button class="button-class" id="button-id2">Button 2</button>
+    <button class="button-class" id="button-id3">Button 3</button>
+  </div>
+  
+
+
+
+  <script>
+    document.getElementById("button-id1").addEventListener("click", function() {
+      let randomColor = Math.floor(Math.random()*16777215).toString(16);
+      document.getElementById("button-id2").style.backgroundColor = "#" + randomColor;
+    });
+
+  </script>    
+</body>
+</html>

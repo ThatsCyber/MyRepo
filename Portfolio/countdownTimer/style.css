@@ -1,0 +1,90 @@
+body {
+  background-image: url('backgroundImage.jpg');
+  background-repeat: no-repeat;
+  background-size: cover;
+  font-family: 'Courier New', Courier, monospace;
+
+}
+
+.CountdownTimer {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Courier New', Courier, monospace;
+  text-align: center;
+  color: black;
+  font-size: 1.5rem;
+}
+
+.CountdownTimer-display {
+  margin-top: 2rem;
+  font-size: 5rem;
+  font-weight: 100;
+  color: black;
+  display: flex;
+}
+
+.CountdownTimer-header {
+  margin-top: 4rem;
+}
+
+.CountdownTimer-display-text-day {
+  display: block;
+  margin: 2rem;
+}
+
+.CountdownTimer-display-text-hour {
+  display: block;
+  margin: 2rem;
+}
+.CountdownTimer-display-text-minutes {
+  display: block;
+  margin: 2rem;
+}
+.CountdownTimer-display-text-seconds {
+  display: block;
+  margin: 2rem;
+}
+
+.display-label-days {
+  font-size: 2.0rem;
+  font-weight: bold;
+  color: black;
+  display: block;
+  margin-top: -4rem;
+}
+.display-label-hours {
+  font-size: 2.0rem;
+  font-weight: bold;
+  color: black;
+  display: block;
+  margin-top: -4rem;
+}
+.display-label-minutes {
+  font-size: 2.0rem;
+  font-weight: bold;
+  color: black;
+  display: block;
+  margin-top: -4rem;
+}
+.display-label-seconds {
+  font-size: 2.0rem;
+  font-weight: bold;
+  color: black;
+  display: block;
+  margin-top: -4rem;
+}
+
+#inputTime {
+  margin-top: 2rem;
+  font-size: 1.5rem;
+  font-weight: 100;
+  color: black;
+  display: block;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%;
+  border: 2px solid black;
+}

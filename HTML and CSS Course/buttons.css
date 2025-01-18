@@ -1,0 +1,108 @@
+.subscribe-button {
+  background-color: rgb(253, 32, 32); /* red */
+  /* text property */
+  border: none;
+  /* border property */
+  color: rgb(255, 255, 255);
+  /* color property */
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
+  /* padding property */
+  text-align: center;
+  /* text-align property */
+  text-decoration: none;
+  /* text-decoration property */
+  display: inline-block;
+  /* display property */
+  font-size: 16px;
+  /* font-size property */
+  border-radius: 2px;
+  /* border-radius property */
+  cursor: pointer;
+  /* cursor property */
+  margin-right: 8px;
+  transition: opacity 0.15s ease-in-out;
+    color: 1s;
+  vertical-align: top;
+}
+.subscribe-button:hover {
+  opacity: 0.8;
+}
+.subscribe-button:active {
+  opacity: 0.5;
+}
+.like-button {
+  background-color: rgb(255, 255, 255); /* white */
+  /* text property */
+  border: 2px solid #384891;
+  /* border property */
+  color: rgb(56, 65, 145);
+  /* color property */
+  padding: 15px 32px;
+  /* padding property */
+  text-align: center;
+  /* text-align property */
+  text-decoration: none;
+  /* text-decoration property */
+  display: inline-block;
+  /* display property */
+  font-size: 16px;
+  /* font-size property */
+  border-radius: 2px;
+  /* border-radius property */
+  cursor: pointer;
+  /* cursor property */
+  border-width: 1px;
+  transition: background-color 0.15s ease-in-out,
+    color 0.75s;
+  vertical-align: top;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+.like-button:hover {
+  background-color: rgb(97, 110, 221); /* blue */
+  color: rgb(255, 255, 255);
+}
+.like-button:active {
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.651);
+}
+.tweet-button {
+  background-color: rgb(29, 161, 242); /* blue */
+  /* text property */
+  border: none;
+  /* border property */
+  color: rgb(255, 255, 255);
+  /* color property */
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 20px;
+  padding-right: 20px;
+  /* padding property */
+  text-align: center;  
+  /* text-align property */
+  text-decoration: none;
+  /* text-decoration property */
+  display: inline-block;
+  /* display property */
+  font-size: 16px;
+  /* font-size property */
+  border-radius: 25px;
+  /* border-radius property */
+  cursor: pointer;
+  /* cursor property */
+  margin-left: 8px;
+  font-weight: bold;
+  font-size: 17px;
+  vertical-align: top;
+}
+.tweet-button:hover {
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.651);
+  transition: box-shadow 0.15s ease-in-out;
+}
+.tweet-button:active {
+  opacity: 0.8;
+}

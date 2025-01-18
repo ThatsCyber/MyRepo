@@ -1,0 +1,56 @@
+.title
+{
+  font-size: 50px;
+  color: #4267B2;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin-top: 20px;
+}
+
+.profile-grid {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.profile-card {
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  text-align: center;
+  width: 250px;
+}
+
+.profile-card img {
+  width: 250px;
+  height: 200px;
+  object-fit: cover;
+}
+
+.profile-card .name {
+  font-size: 24px;
+  color: #333;
+}
+
+.profile-card .mutual-friends {
+  font-size: 16px;
+  color: #777;
+}
+
+.profile-card .add-friend-button {
+  padding: 10px 20px;
+  background-color: #4267B2;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.mutual-friends img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+}
+.add-friend-button:hover {
+  background-color: #385898;
+}
+.add-friend-button:active {
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.651);
+}

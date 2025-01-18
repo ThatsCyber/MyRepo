@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        #gameBox {
+            position: relative;
+            height: 480px;
+            width: 640px;
+            border: 1px solid black;
+        }
+        #character {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            height: 50px;
+            width: 50px;
+            background-color: rgb(0, 0, 0);
+            transition: top 0.5s, left 0.5s;
+        }
+        #directions {
+            width: 50px;
+            height: 50px;
+            background-color: lightgray;
+            overflow: auto;
+        }
+        #trail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 480px;
+            width: 640px;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameBox">
+        <canvas id="trail"></canvas>
+        <div id="character"></div>
+    </div>
+    <button onclick="setDirection('up')">Up</button>
+    <button onclick="setDirection('down')">Down</button>
+    <button onclick="setDirection('left')">Left</button>
+    <button onclick="setDirection('right')">Right</button>
+    <div id="directions"></div>
+    <button onclick="reset()">Reset</button>
+
+    <script>
+        var character = document.getElementById('character');
+        var directions = document.getElementById('directions');
+        var trailCanvas = document.getElementById('trail');
+        var trailContext = trailCanvas.getContext('2d');
+        var directionQueue = [];
+        var trail = [];
+        function setDirection(direction) {
+            directionQueue.push(direction);
+            directions.innerHTML += direction + '<br>';
+        }
+        async function move() {
+            while(directionQueue.length > 0) {
+                var direction = directionQueue.shift();
+                var top = parseInt(window.getComputedStyle(character).getPropertyValue('top'));
+                var left = parseInt(window.getComputedStyle(character).getPropertyValue('left'));
+                switch(direction) {
+                    case 'up':
+                        if(top - 100 >= 0) {
+                            character.style.top = (top - 100) + 'px';
+                        }
+                        break;
+                    case 'down':
+                        if(top + 100 <= 430) {
+                            character.style.top = (top + 100) + 'px';
+                        }
+                        break;
+                    case 'left':
+                        if(left - 100 >= 0) {
+                            character.style.left = (left - 100) + 'px';
+                        }
+                        break;
+                    case 'right':
+                        if(left + 100 <= 590) {
+                            character.style.left = (left + 100) + 'px';
+                        }
+                        break;
+                }
+                trail.push({top: top, left: left});
+                await new Promise(r => setTimeout(r, 500));
+            }
+            drawTrail();
+        }
+        function drawTrail() {
+            trailContext.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+            trailContext.beginPath();
+            trailContext.moveTo(trail[0].left + 25, trail[0].top + 25);
+            for(var i = 1; i < trail.length; i++) {
+                trailContext.lineTo(trail[i].left + 25, trail[i].top + 25);
+            }
+            trailContext.strokeStyle = 'pink';
+            trailContext.lineWidth = 25;
+            trailContext.lineCap = 'round';
+            trailContext.stroke();
+        }
+        function reset() {
+            character.style.top = '50%';
+            character.style.left = '50%';
+            directionQueue = [];
+            trail = [];
+            directions.innerHTML = '';
+            trailContext.clearRect(0, 0, trailCanvas.width, trailCanvas.height);
+        }
+        window.addEventListener('keydown', function(e) {
+            if(e.key === 'Enter') {
+                move();
+            }
+        });
+    </script>
+</body>
+</html>

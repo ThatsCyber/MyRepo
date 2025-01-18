@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <link rel="stylesheet" href="calculator.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practice calculator</title>
+</head>
+<body>
+  <header>
+    <h1>Practice Calculator</h1>
+  <div class="container">
+    <div class="seconddiv">
+      <input type="text" id="input1" class="inputclass" readonly>
+    </div>
+    <div class="firstrow">
+      <button class="btn" onclick="clearScreen()">AC</button>
+      <button class="btn">DE</button>
+      <button class="btn" onclick="displayNumber('.')">.</button>
+      <button class="btn" onclick="displayNumber('/')">/</button>
+    </div>
+    <div class="secondrow">
+      <button class="btn" onclick="displayNumber('7')">7</button>
+      <button class="btn" onclick="displayNumber('8')">8</button>
+      <button class="btn" onclick="displayNumber('9')">9</button>
+      <button class="btn" onclick="displayNumber('*')">*</button>
+    </div>
+    <div class="thirdrow">
+      <button class="btn" onclick="displayNumber('4')">4</button>
+      <button class="btn" onclick="displayNumber('5')">5</button>
+      <button class="btn" onclick="displayNumber('6')">6</button>
+      <button class="btn" onclick="displayNumber('-')">-</button>
+    </div>
+    <div class="fourthrow">
+      <button class="btn" onclick="displayNumber('1')">1</button>
+      <button class="btn" onclick="displayNumber('2')">2</button>
+      <button class="btn" onclick="displayNumber('3')">3</button>
+      <button class="btn" onclick="displayNumber('+')">+</button>
+    </div>
+    <div class="fifthrow">
+      <button class="btn">00</button>
+      <button class="btn" onclick="displayNumber('0')">0</button>
+      <button class="btn" onclick="equalSign()" id="equalsign">=</button>
+    </div>
+
+
+
+  </div>
+  
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  <script src="calculator.js"></script>
+</body>
+</html>
