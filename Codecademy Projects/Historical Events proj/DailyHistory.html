@@ -9,9 +9,27 @@
 </head>
 <body>
   <div class="container">
-    <h1>On This Day...</h1>
-    <p id="event-display">Click the button to see what went down in history today</p>
-    <button id="generate-event">Show me</button>
+    <h1>
+      On This Day...
+    </h1>
+    <p id="event-display">
+      Click the button to see what went down in history today
+    </p>
+    <div class="current-date-container">
+      <span id="current-date">
+        January 25, 2025
+      </span>
+    </div>
+    
+    <button id="generate-event" onclick="showHistoricalFact()">
+      Show me
+    </button>
+    <div id="historicalFactModal" class="modal">
+      <div class="modal-content">
+          <span class="close-button" onclick="closeModal()">&times;</span>
+          <p id="historical-fact"></p>
+      </div>
+  </div>
   </div>
   
 </body>

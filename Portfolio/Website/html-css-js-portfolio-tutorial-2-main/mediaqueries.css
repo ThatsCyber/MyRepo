@@ -101,3 +101,12 @@
     text-align: justify;
   }
 }
+
+#scrollToTopArrow {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+#scrollToTopArrow.show {
+  opacity: 1;
+}
