@@ -10,6 +10,7 @@ class DataHandler:
         self.facilities_data = None
         self.cart_data = None
         self.regions_data = None
+        self.utilization_data = None  # Add this line
         
     def load_facilities_data(self, file_path: str) -> bool:
         """Load and validate facilities data from Excel file."""
@@ -283,3 +284,145 @@ class DataHandler:
                 continue
                 
         return sites_data 
+
+    def load_utilization_data(self, file_path):
+        """Load yard utilization data from a CSV file."""
+        try:
+            # Read the CSV file
+            self.utilization_data = pd.read_csv(file_path)
+            
+            # Ensure required columns exist
+            required_columns = ['Site Code', 'On Site Utilization', 'On Site Capacity', 'On Site Usage']
+            if not all(col in self.utilization_data.columns for col in required_columns):
+                raise ValueError("Missing required columns in utilization data")
+                
+            # Convert utilization to float, handling any invalid values
+            self.utilization_data['On Site Utilization'] = pd.to_numeric(
+                self.utilization_data['On Site Utilization'],
+                errors='coerce'
+            )
+            
+            # Create the Extracted_Site column
+            self.utilization_data['Extracted_Site'] = self.utilization_data['Site Code'].apply(
+                lambda x: self._extract_site_code(str(x))
+            )
+            
+            return True
+        except Exception as e:
+            print(f"Unexpected error loading utilization data: {str(e)}")  # Keep this for error handling
+            return False
+
+    def _extract_site_code(self, site_code: str) -> str:
+        """Extract the site code from the utilization format to match cart data format."""
+        # Remove any quotes and clean the string
+        site_code = site_code.strip('"').strip().upper()
+        
+        # Try to extract the site code using various patterns
+        patterns = [
+            # Pattern for codes like AGS1, JAX2, etc.
+            r'([A-Z]{3}\d+)',
+            # Pattern for AACT-XXX format
+            r'AACT-([A-Z]{3})',
+            # Pattern for rail codes
+            r'RAIL_(\w+)',
+            # Pattern for NSD codes
+            r'NSD_(\w+)',
+            # Pattern for codes with underscores (take first part)
+            r'^([^_]+)',
+            # Pattern for codes with dashes (take first part)
+            r'^([^-]+)',
+            # Pattern for any alphanumeric sequence
+            r'([A-Z0-9]+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, site_code)
+            if match:
+                extracted = match.group(1)
+                # If it's a 3-letter code without numbers, try to find a number after it
+                if len(extracted) == 3 and extracted.isalpha():
+                    number_match = re.search(r'\d+', site_code)
+                    if number_match:
+                        extracted += number_match.group(0)
+                return extracted
+        
+        # If no pattern matches, return the original code
+        return site_code
+
+    def get_utilization_info(self, site: str = "") -> Optional[Dict]:
+        """Get utilization information for a specific site."""
+        if self.utilization_data is None:
+            return None
+            
+        site = str(site).strip().upper()
+        if not site:
+            return None
+            
+        # Try exact match first
+        site_data = self.utilization_data[self.utilization_data['Site Code'].str.upper() == site]
+        
+        if site_data.empty:
+            # Try to match against the extracted site codes
+            site_data = self.utilization_data[self.utilization_data['Extracted_Site'] == site]
+        
+        if site_data.empty:
+            # Try matching without trailing numbers
+            base_site = re.sub(r'\d+$', '', site)
+            site_data = self.utilization_data[
+                (self.utilization_data['Extracted_Site'].str.startswith(base_site)) |
+                (self.utilization_data['Site Code'].str.upper().str.startswith(base_site))
+            ]
+        
+        if site_data.empty:
+            # Try matching with just the first part of the site code (before any separator)
+            base_site = re.split(r'[_\-]', site)[0].strip()
+            site_data = self.utilization_data[
+                (self.utilization_data['Extracted_Site'].str.startswith(base_site)) |
+                (self.utilization_data['Site Code'].str.upper().str.startswith(base_site))
+            ]
+        
+        if site_data.empty:
+            return None
+            
+        # Get the first matching row
+        row = site_data.iloc[0]
+        
+        # Check if any of the required values are NaN
+        if (pd.isna(row['On Site Utilization']) or 
+            pd.isna(row['On Site Capacity']) or 
+            pd.isna(row['On Site Usage'])):
+            return None
+            
+        return {
+            'Site Code': site,
+            'On Site Utilization': float(row['On Site Utilization']),
+            'On Site Capacity': float(row['On Site Capacity']),
+            'On Site Usage': float(row['On Site Usage'])
+        }
+
+    def get_all_utilization_data(self) -> List[Dict]:
+        """Get utilization information for all sites."""
+        if self.utilization_data is None:
+            return []
+            
+        result = []
+        for _, row in self.utilization_data.iterrows():
+            # Skip rows with NaN values or 0 utilization
+            utilization = row['On Site Utilization']
+            capacity = row['On Site Capacity']
+            usage = row['On Site Usage']
+            
+            # Check each value individually
+            if (isinstance(utilization, float) and np.isnan(utilization) or
+                isinstance(capacity, float) and np.isnan(capacity) or
+                isinstance(usage, float) and np.isnan(usage) or
+                utilization == 0):
+                continue
+                
+            result.append({
+                'Site Code': row['Site Code'],
+                'On Site Utilization': float(utilization),
+                'On Site Capacity': float(capacity),
+                'On Site Usage': float(usage)
+            })
+        return result 
