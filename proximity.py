@@ -7,23 +7,21 @@ class ProximityAnalyzer:
         self.data_handler = data_handler
         
     def get_coordinates(self, site_data: Dict) -> Optional[tuple]:
-        """Get coordinates for a site, preferring verified coordinates."""
+        """Get coordinates for a site using regular latitude and longitude."""
         if site_data is None:
             return None
             
-        # Check verified coordinates
-        verified_lat = site_data.get('Verified_Lat')
-        verified_long = site_data.get('Verified_Long')
-        if verified_lat is not None and verified_long is not None and pd.notna(verified_lat) and pd.notna(verified_long):
-            return (float(verified_lat), float(verified_long))
+        lat = site_data.get('latitude', '')
+        long = site_data.get('longitude', '')
+        
+        # Check for empty strings, None, or non-numeric values
+        if not lat or not long or lat == '' or long == '' or pd.isna(lat) or pd.isna(long):
+            return None
             
-        # Fall back to regular coordinates
-        lat = site_data.get('latitude')
-        long = site_data.get('longitude')
-        if lat is not None and long is not None and pd.notna(lat) and pd.notna(long):
-            return (float(lat), float(float(long)))
-            
-        return None
+        try:
+            return (float(lat), float(long))
+        except (ValueError, TypeError):
+            return None
         
     def calculate_distance(self, coord1: tuple, coord2: tuple) -> float:
         """Calculate distance between two coordinates in miles."""

@@ -10,6 +10,7 @@ from PyQt6.QtGui import QColor, QFont
 from qt_material import apply_stylesheet
 from data_handler import DataHandler
 from proximity import ProximityAnalyzer
+import pandas as pd
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -44,14 +45,14 @@ class MainWindow(QMainWindow):
         button_width = 150  # Adjust this value if needed for better fit
         
         # Left button - Facilities (stays in the same position)
-        self.load_facilities_btn = QPushButton("Load Facilities Excel")
+        self.load_facilities_btn = QPushButton("Load Facilities (Excel/CSV)")
         self.load_facilities_btn.setFixedHeight(25)  # Make button smaller
         self.load_facilities_btn.setFixedWidth(button_width)
         self.load_facilities_btn.clicked.connect(self._load_facilities_file)
         file_layout.addWidget(self.load_facilities_btn)
         
         # Middle button - Supply & Demand
-        self.load_cart_btn = QPushButton("Load Cart Data CSV")
+        self.load_cart_btn = QPushButton("Load Supply Demand")
         self.load_cart_btn.setFixedHeight(25)  # Make button smaller
         self.load_cart_btn.setFixedWidth(button_width)
         self.load_cart_btn.clicked.connect(self._load_cart_file)
@@ -63,6 +64,13 @@ class MainWindow(QMainWindow):
         self.load_utilization_btn.setFixedWidth(button_width)
         self.load_utilization_btn.clicked.connect(self._load_utilization_file)
         file_layout.addWidget(self.load_utilization_btn)
+        
+        # Far right button - TEC Dwelling
+        self.load_dwelling_btn = QPushButton("Load TEC Dwelling")
+        self.load_dwelling_btn.setFixedHeight(25)  # Make button smaller
+        self.load_dwelling_btn.setFixedWidth(button_width)
+        self.load_dwelling_btn.clicked.connect(self._load_dwelling_file)
+        file_layout.addWidget(self.load_dwelling_btn)
         
         header_layout.addLayout(file_layout)
         layout.addLayout(header_layout)
@@ -157,7 +165,7 @@ class MainWindow(QMainWindow):
         try:
             # Set fonts
             content_font = QFont("Arial", 7)
-            header_font = QFont("Arial", 6)  # Keep small font for better fit
+            header_font = QFont("Arial", 8)  # Increased from 6 to 8 for better readability
             header_font.setBold(True)
             
             table.setFont(content_font)
@@ -365,25 +373,19 @@ class MainWindow(QMainWindow):
         self.negative_balance_table = QTableWidget()
         self.positive_balance_table = QTableWidget()
         
+        # Define columns and widths once
+        columns = [
+            'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
+            'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
+        ]
+        column_widths = [100, 100, 80, 80, 80, 80, 80, 80, 80, 80]
+
         # Set up tables
         for table in [self.negative_balance_table, self.positive_balance_table]:
             self._setup_table(table)
-            table.setColumnCount(8)  # Updated column count
-            table.setHorizontalHeaderLabels([
-                'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
-                'Utilization', 'Capacity', 'Usage'
-            ])
-            # Set widths to fit column titles
-            self._set_table_column_widths(table, [
-                85,   # Site Name
-                65,   # Region
-                65,   # Demand
-                65,   # Supply
-                65,   # Balance
-                85,   # Utilization
-                75,   # Capacity
-                65    # Usage
-            ])
+            table.setColumnCount(len(columns))
+            table.setHorizontalHeaderLabels(columns)
+            self._set_table_column_widths(table, column_widths)
             
             # Ensure headers are word-wrapped and tall enough
             try:
@@ -391,7 +393,6 @@ class MainWindow(QMainWindow):
                 if header is not None:
                     header.setMinimumHeight(30)  # Make header taller
                     header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)  # Center align headers
-                    # Allow columns to be resized by user
                     header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
             except Exception as e:
                 print(f"Warning: Could not configure table header: {str(e)}")
@@ -413,114 +414,54 @@ class MainWindow(QMainWindow):
         if self.data_handler.cart_data is None:
             return
             
-        # Get all sites with cart data
-        sites_data = self.data_handler.get_all_cart_sites()
-        
-        # Split into negative and positive balance
-        negative_sites = [site for site in sites_data if site['Balance'] < 0]
-        positive_sites = [site for site in sites_data if site['Balance'] > 0]
-        
-        # Sort both lists by balance
-        negative_sites.sort(key=lambda x: x['Balance'])  # Most negative first
-        positive_sites.sort(key=lambda x: x['Balance'], reverse=True)  # Most positive first
+        # Get pre-filtered and sorted data from data_handler
+        negative_sites = self.data_handler.get_negative_balance_sites()
+        high_balance_sites = self.data_handler.get_high_balance_sites()
         
         # Update negative balance table
-        self.negative_balance_table.setRowCount(len(negative_sites))
         self._fill_balance_table(self.negative_balance_table, negative_sites)
         
         # Update positive balance table
-        self.positive_balance_table.setRowCount(len(positive_sites))
-        self._fill_balance_table(self.positive_balance_table, positive_sites)
+        self._fill_balance_table(self.positive_balance_table, high_balance_sites)
         
     def _fill_balance_table(self, table, sites_data):
-        """Helper method to fill a balance table with site data."""
-        font = QFont("Arial", 7)
+        """Fill the balance table with site data."""
+        # Define columns - this must match the data from get_all_cart_sites
+        columns = [
+            'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
+            'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
+        ]
         
-        for row, site in enumerate(sites_data):
-            # Site Name
-            item = QTableWidgetItem(site['Site Name'])
-            item.setFont(font)
-            table.setItem(row, 0, item)
-            
-            # Region
-            item = QTableWidgetItem(site['Region'])
-            item.setFont(font)
-            table.setItem(row, 1, item)
-            
-            # Demand
-            item = QTableWidgetItem(str(site['Demand']))
-            item.setFont(font)
-            table.setItem(row, 2, item)
-            
-            # Supply
-            item = QTableWidgetItem(str(site['Supply']))
-            item.setFont(font)
-            table.setItem(row, 3, item)
-            
-            # Balance
-            item = QTableWidgetItem(str(site['Balance']))
-            item.setFont(font)
-            if site['Balance'] < 0:
-                item.setBackground(QColor(255, 0, 0))
-            table.setItem(row, 4, item)
-            
-            # Add utilization data
-            utilization_info = self.data_handler.get_utilization_info(site['Site Name'])
-            if utilization_info:
-                # Utilization (as percentage)
-                if utilization_info.get('On Site Utilization') is not None:
+        numeric_columns = {
+            'Demand', 'Supply', 'Balance',
+            'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
+        }
+        
+        table.setRowCount(len(sites_data))
+        table.setColumnCount(len(columns))
+        table.setHorizontalHeaderLabels(columns)
+        
+        # Column widths are now set in _create_cart_balance_section
+        
+        # Fill data
+        for row, site_data in enumerate(sites_data):
+            for col, column in enumerate(columns):
+                value = site_data.get(column, 0 if column in numeric_columns else '')
+                
+                # Format value based on column type
+                if column in numeric_columns:
                     try:
-                        utilization = float(utilization_info['On Site Utilization'])
-                        utilization_percentage = utilization * 100
-                        value = f"{utilization_percentage:.2f}%"
-                        item = QTableWidgetItem(value)
-                        item.setFont(QFont("Arial", 7))
-                        # Use our color helper method for the text color
-                        color = self._get_utilization_color(utilization_percentage)
-                        item.setForeground(color)
+                        # Check if value can be converted to a float
+                        float_value = float(value)
+                        item = QTableWidgetItem(f"{float_value:.2f}")
                     except (ValueError, TypeError):
-                        value = 'N/A'
-                        item = QTableWidgetItem(value)
-                        item.setFont(QFont("Arial", 7))
+                        item = QTableWidgetItem("0.00")
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 else:
-                    value = 'N/A'
-                    item = QTableWidgetItem(value)
-                    item.setFont(QFont("Arial", 7))
-                table.setItem(row, 5, item)
+                    item = QTableWidgetItem(str(value))
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 
-                # Capacity
-                value = utilization_info.get('On Site Capacity')
-                if value == 'N/A' or value is None:
-                    value = 'N/A'
-                item = QTableWidgetItem(str(value))
-                item.setFont(font)
-                table.setItem(row, 6, item)
-                
-                # Usage
-                value = utilization_info.get('On Site Usage')
-                if value == 'N/A' or value is None:
-                    value = 'N/A'
-                item = QTableWidgetItem(str(value))
-                item.setFont(font)
-                table.setItem(row, 7, item)
-            else:
-                # Fill with N/A if no utilization data
-                for col in range(5, 8):
-                    item = QTableWidgetItem('N/A')
-                    item.setFont(font)
-                    table.setItem(row, col, item)
-        
-        # Reapply column widths
-        self._set_table_column_widths(table, [
-            85,   # Site Name
-            65,   # Region
-            65,   # Demand
-            65,   # Supply
-            65,   # Balance
-            85,   # Utilization
-            75,   # Capacity
-            65    # Usage
-        ])
+                table.setItem(row, col, item)
 
     def _create_utilization_section(self, parent_layout):
         """Create the yard utilization section with a table."""
@@ -621,12 +562,24 @@ class MainWindow(QMainWindow):
         pass
             
     def _load_facilities_file(self):
-        """Load facilities Excel file."""
+        """Load facilities data from Excel or CSV file."""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Facilities Excel File", "", "Excel Files (*.xlsx *.xlsm)"
+            self,
+            "Load Facilities Data",
+            "",
+            "Facilities Files (*.xlsx *.xlsm *.csv);;Excel Files (*.xlsx *.xlsm);;CSV Files (*.csv);;All Files (*)"
         )
-        if file_path and self.data_handler.load_facilities_data(file_path):
+        
+        if not file_path:  # User cancelled
+            return
+            
+        # Load the data
+        success = self.data_handler.load_facilities_data(file_path)
+        
+        if success:
             QMessageBox.information(self, "Success", "Facilities data loaded successfully!")
+        else:
+            QMessageBox.warning(self, "Error", "Failed to load facilities data. Check the console for details.")
         
     def _load_cart_file(self):
         """Load cart data file and update tables."""
@@ -831,11 +784,12 @@ class MainWindow(QMainWindow):
         # Use the filtered list
         unique_sites = all_sites
             
-        # Set up columns (added utilization columns)
+        # Set up columns (added dwelling columns)
         columns = [
             'Name', 'Type', 'Address', 'Region', 
             'Demand', 'Full Day Demand', 'Supply', 'Balance',
-            'Utilization', 'Capacity', 'Usage'
+            'Utilization', 'Capacity', 'Usage',
+            'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'  # Updated dwelling columns
         ]
         self.site_info_table.setColumnCount(len(columns))
         self.site_info_table.setHorizontalHeaderLabels(columns)
@@ -843,7 +797,7 @@ class MainWindow(QMainWindow):
         # Set column widths
         self._set_table_column_widths(
             self.site_info_table,
-            [80, 70, 200, 70, 70, 100, 70, 75, 100, 70, 70]  # Added widths for new columns
+            [80, 70, 200, 70, 70, 100, 70, 75, 100, 70, 70, 70, 70, 70, 70, 70]  # Updated widths for all columns
         )
         
         # Clear existing rows
@@ -890,8 +844,26 @@ class MainWindow(QMainWindow):
                         'Usage': 'N/A'
                     }
                 
+                # Get dwelling info
+                if site_info.get('has_dwelling_data', False):
+                    dwelling_data = {
+                        'Total Trailers': site_info.get('Total Trailers', 'N/A'),
+                        '<24 Hrs': site_info.get('<24 Hrs', 'N/A'),
+                        '24-72 Hrs': site_info.get('24-72 Hrs', 'N/A'),
+                        '72-168 Hrs': site_info.get('72-168 Hrs', 'N/A'),
+                        '>168 Hrs': site_info.get('>168 Hrs', 'N/A')
+                    }
+                else:
+                    dwelling_data = {
+                        'Total Trailers': 'N/A',
+                        '<24 Hrs': 'N/A',
+                        '24-72 Hrs': 'N/A',
+                        '72-168 Hrs': 'N/A',
+                        '>168 Hrs': 'N/A'
+                    }
+                
                 # Combine all info
-                all_info = {**basic_info, **demand_info, **utilization_data}
+                all_info = {**basic_info, **demand_info, **utilization_data, **dwelling_data}
                 
                 # Fill the row
                 for col, column_name in enumerate(columns):
@@ -924,7 +896,7 @@ class MainWindow(QMainWindow):
                         item.setFont(font)
                         
                         # Highlight negative balance
-                        if column_name == 'Balance' and float(value) < 0:
+                        if column_name == 'Balance' and isinstance(value, (int, float)) and float(value) < 0:
                             item.setBackground(QColor(255, 0, 0))
                             
                         self.site_info_table.setItem(row, col, item)
@@ -1047,3 +1019,41 @@ class MainWindow(QMainWindow):
             print(f"Warning: Could not configure table header: {str(e)}")
             
         # Removed resizeColumnsToContents() to maintain our custom widths 
+
+    def _load_dwelling_file(self):
+        """Load TEC dwelling data from a CSV file."""
+        try:
+            file_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Load TEC Dwelling Data",
+                "",
+                "CSV Files (*.csv);;All Files (*)"
+            )
+            
+            if not file_path:  # User cancelled
+                return
+                
+            # Load the data
+            success = self.data_handler.load_dwelling_data(file_path)
+            
+            if success:
+                # Update tables that might show dwelling data
+                self._update_site_info_multiple([])  # Clear and refresh the site info table
+                QMessageBox.information(self, "Success", "TEC dwelling data loaded successfully!")
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    "Failed to load TEC dwelling data. Please check that your CSV file has the correct format:\n\n"
+                    "Required columns:\n"
+                    "- Site Code\n"
+                    "- Region\n"
+                    "- TEC Count\n"
+                    "- Dwelling Time"
+                )
+        except pd.errors.EmptyDataError:
+            QMessageBox.warning(self, "Error", "The CSV file is empty")
+        except pd.errors.ParserError as e:
+            QMessageBox.warning(self, "Error", f"Error parsing CSV file: {str(e)}")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to load TEC dwelling data: {str(e)}") 
