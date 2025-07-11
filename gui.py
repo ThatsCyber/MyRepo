@@ -378,7 +378,7 @@ class MainWindow(QMainWindow):
             'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
             'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
         ]
-        column_widths = [100, 100, 80, 80, 80, 80, 80, 80, 80, 80]
+        column_widths = [100, 100, 80, 80, 80, 120, 80, 80, 80, 80]  # Increased Total Trailers width to 120
 
         # Set up tables
         for table in [self.negative_balance_table, self.positive_balance_table]:
