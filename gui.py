@@ -40,15 +40,29 @@ class MainWindow(QMainWindow):
         file_layout = QHBoxLayout()
         file_layout.setSpacing(5)  # Reduce spacing
         
+        # Set a fixed width for all buttons to ensure they fit nicely
+        button_width = 150  # Adjust this value if needed for better fit
+        
+        # Left button - Facilities (stays in the same position)
         self.load_facilities_btn = QPushButton("Load Facilities Excel")
         self.load_facilities_btn.setFixedHeight(25)  # Make button smaller
+        self.load_facilities_btn.setFixedWidth(button_width)
         self.load_facilities_btn.clicked.connect(self._load_facilities_file)
         file_layout.addWidget(self.load_facilities_btn)
         
+        # Middle button - Supply & Demand
         self.load_cart_btn = QPushButton("Load Cart Data CSV")
         self.load_cart_btn.setFixedHeight(25)  # Make button smaller
+        self.load_cart_btn.setFixedWidth(button_width)
         self.load_cart_btn.clicked.connect(self._load_cart_file)
         file_layout.addWidget(self.load_cart_btn)
+        
+        # Right button - Yard Utilization
+        self.load_utilization_btn = QPushButton("Load Yard Utilization")
+        self.load_utilization_btn.setFixedHeight(25)  # Make button smaller
+        self.load_utilization_btn.setFixedWidth(button_width)
+        self.load_utilization_btn.clicked.connect(self._load_utilization_file)
+        file_layout.addWidget(self.load_utilization_btn)
         
         header_layout.addLayout(file_layout)
         layout.addLayout(header_layout)
@@ -197,12 +211,33 @@ class MainWindow(QMainWindow):
             print(f"Warning: Could not setup table properties: {str(e)}")
         
     def _set_table_column_widths(self, table, widths):
-        """Helper method to safely set column widths."""
-        header = table.horizontalHeader()
-        if header is not None:
-            for col, width in enumerate(widths):
-                header.resizeSection(col, width)
-                
+        """Set the width of each column in the table."""
+        for col, width in enumerate(widths):
+            table.setColumnWidth(col, width)
+            
+    def _get_utilization_color(self, utilization_percentage):
+        """
+        Returns a QColor based on utilization percentage:
+        - 0-89.99%: White
+        - 90-95.99%: Orange
+        - 96-99.99%: Orange-Red gradient
+        - 100%+: Red
+        """
+        # Add a small epsilon to handle floating point comparison
+        epsilon = 0.0001
+        
+        if utilization_percentage >= 100:
+            return QColor(255, 0, 0)  # Pure red
+        elif utilization_percentage >= 96:
+            # Calculate gradient between orange and red
+            # As we go from 96 to 99, we reduce the green component
+            green = int(140 - (140 * (utilization_percentage - 96) / 3))
+            return QColor(255, green, 0)
+        elif utilization_percentage >= (90 - epsilon):  # Include values very close to 90
+            return QColor(255, 140, 0)  # Orange
+        else:
+            return QColor(255, 255, 255)  # White
+            
     def _create_input_section(self, parent_layout):
         """Create input section with site input and action buttons."""
         input_layout = QVBoxLayout()
@@ -230,7 +265,7 @@ class MainWindow(QMainWindow):
         for btn_text, action in [
             ("Depart TEC", lambda: self._process_site_action("DEPART")),
             ("Need TEC", lambda: self._process_site_action("NEED")),
-            ("Check Cart Site", self._check_cart_site)
+            ("Check Site Info", self._check_cart_site)
         ]:
             btn = QPushButton(btn_text)
             btn.setFixedHeight(22)  # Smaller button height
@@ -278,7 +313,18 @@ class MainWindow(QMainWindow):
         
         self.limit_combo = QComboBox()
         self.limit_combo.setFont(QFont("Arial", 7))
-        self.limit_combo.addItems(['5', '10', '15', '20'])
+        self.limit_combo.addItems([str(i) for i in range(5, 51, 5)])  # 5 to 50 in steps of 5
+        self.limit_combo.setMaxVisibleItems(4)  # Show only 4 items at a time
+        self.limit_combo.setStyleSheet("""
+            QComboBox {
+                max-height: 20px;
+            }
+            QComboBox QAbstractItemView {
+                selection-background-color: #2a5a8c;
+                selection-color: white;
+                min-height: 100px;  /* Ensure dropdown is tall enough to scroll */
+            }
+        """)
         controls_layout.addWidget(self.limit_combo)
         
         # Cart sites only checkbox
@@ -301,7 +347,7 @@ class MainWindow(QMainWindow):
         proximity_layout.addWidget(self.proximity_table)
         
         parent_layout.addLayout(proximity_layout)
-        
+
     def _create_cart_balance_section(self, parent_layout):
         """Create section for displaying cart balance information with tabs."""
         # Create tab widget
@@ -322,11 +368,33 @@ class MainWindow(QMainWindow):
         # Set up tables
         for table in [self.negative_balance_table, self.positive_balance_table]:
             self._setup_table(table)
-            table.setColumnCount(5)  # Removed 'Sent' column as it's not being used
+            table.setColumnCount(8)  # Updated column count
             table.setHorizontalHeaderLabels([
-                'Site Name', 'Region', 'Demand', 'Supply', 'Balance'
+                'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
+                'Utilization', 'Capacity', 'Usage'
             ])
-            self._set_table_column_widths(table, [80, 70, 70, 70, 70])
+            # Set widths to fit column titles
+            self._set_table_column_widths(table, [
+                85,   # Site Name
+                65,   # Region
+                65,   # Demand
+                65,   # Supply
+                65,   # Balance
+                85,   # Utilization
+                75,   # Capacity
+                65    # Usage
+            ])
+            
+            # Ensure headers are word-wrapped and tall enough
+            try:
+                header = table.horizontalHeader()
+                if header is not None:
+                    header.setMinimumHeight(30)  # Make header taller
+                    header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)  # Center align headers
+                    # Allow columns to be resized by user
+                    header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+            except Exception as e:
+                print(f"Warning: Could not configure table header: {str(e)}")
         
         negative_layout.addWidget(self.negative_balance_table)
         positive_layout.addWidget(self.positive_balance_table)
@@ -396,14 +464,161 @@ class MainWindow(QMainWindow):
                 item.setBackground(QColor(255, 0, 0))
             table.setItem(row, 4, item)
             
-        table.resizeColumnsToContents()
+            # Add utilization data
+            utilization_info = self.data_handler.get_utilization_info(site['Site Name'])
+            if utilization_info:
+                # Utilization (as percentage)
+                if utilization_info.get('On Site Utilization') is not None:
+                    try:
+                        utilization = float(utilization_info['On Site Utilization'])
+                        utilization_percentage = utilization * 100
+                        value = f"{utilization_percentage:.2f}%"
+                        item = QTableWidgetItem(value)
+                        item.setFont(QFont("Arial", 7))
+                        # Use our color helper method for the text color
+                        color = self._get_utilization_color(utilization_percentage)
+                        item.setForeground(color)
+                    except (ValueError, TypeError):
+                        value = 'N/A'
+                        item = QTableWidgetItem(value)
+                        item.setFont(QFont("Arial", 7))
+                else:
+                    value = 'N/A'
+                    item = QTableWidgetItem(value)
+                    item.setFont(QFont("Arial", 7))
+                table.setItem(row, 5, item)
+                
+                # Capacity
+                value = utilization_info.get('On Site Capacity')
+                if value == 'N/A' or value is None:
+                    value = 'N/A'
+                item = QTableWidgetItem(str(value))
+                item.setFont(font)
+                table.setItem(row, 6, item)
+                
+                # Usage
+                value = utilization_info.get('On Site Usage')
+                if value == 'N/A' or value is None:
+                    value = 'N/A'
+                item = QTableWidgetItem(str(value))
+                item.setFont(font)
+                table.setItem(row, 7, item)
+            else:
+                # Fill with N/A if no utilization data
+                for col in range(5, 8):
+                    item = QTableWidgetItem('N/A')
+                    item.setFont(font)
+                    table.setItem(row, col, item)
+        
+        # Reapply column widths
+        self._set_table_column_widths(table, [
+            85,   # Site Name
+            65,   # Region
+            65,   # Demand
+            65,   # Supply
+            65,   # Balance
+            85,   # Utilization
+            75,   # Capacity
+            65    # Usage
+        ])
+
+    def _create_utilization_section(self, parent_layout):
+        """Create the yard utilization section with a table."""
+        # Create and set up the table
+        self.utilization_table = QTableWidget()
+        self._setup_table(self.utilization_table)
+        
+        # Set up columns
+        columns = ['Site Code', 'Utilization', 'Capacity', 'Usage']
+        self.utilization_table.setColumnCount(len(columns))
+        self.utilization_table.setHorizontalHeaderLabels(columns)
+        
+        # Set column widths
+        self._set_table_column_widths(
+            self.utilization_table,
+            [100, 200, 80, 80]  # Wider Utilization column for progress bar
+        )
+        
+        parent_layout.addWidget(self.utilization_table)
+
+    def _update_utilization_table(self):
+        """Update the yard utilization table with current data."""
+        if not hasattr(self, 'utilization_table'):
+            return
+            
+        # Get all utilization data
+        utilization_data = self.data_handler.get_all_utilization_data()
+        
+        # Clear existing rows
+        self.utilization_table.setRowCount(0)
+        
+        # Add data to table
+        for data in utilization_data:
+            row = self.utilization_table.rowCount()
+            self.utilization_table.insertRow(row)
+            
+            # Site Code
+            site_item = QTableWidgetItem(data['Site Code'])
+            self.utilization_table.setItem(row, 0, site_item)
+            
+            # Utilization (as progress bar)
+            utilization = data['On Site Utilization']
+            progress_widget = QWidget()
+            progress_layout = QHBoxLayout(progress_widget)
+            progress_layout.setContentsMargins(4, 2, 4, 2)
+            
+            # Create progress bar background
+            bar_width = 150
+            bar_height = 15
+            
+            # Calculate width of filled portion
+            filled_width = int(min(max(utilization * 100, 0), 100) * bar_width / 100)
+            
+            # Create filled portion
+            filled = QWidget()
+            filled.setFixedSize(filled_width, bar_height)
+            filled.setStyleSheet(
+                f"background-color: {'red' if utilization > 1 else 'green'}; "
+                "border-radius: 2px;"
+            )
+            
+            # Create background
+            background = QWidget()
+            background.setFixedSize(bar_width, bar_height)
+            background.setStyleSheet(
+                "background-color: #404040; border-radius: 2px;"
+            )
+            
+            # Add percentage label
+            label = QLabel(f"{utilization:.2%}")
+            label.setStyleSheet("color: white; background: transparent;")
+            
+            # Layout the progress bar
+            progress_layout.addWidget(background)
+            progress_layout.addWidget(filled)
+            progress_layout.addWidget(label)
+            progress_layout.addStretch()
+            
+            self.utilization_table.setCellWidget(row, 1, progress_widget)
+            
+            # Capacity
+            capacity_item = QTableWidgetItem(str(int(data['On Site Capacity'])))
+            self.utilization_table.setItem(row, 2, capacity_item)
+            
+            # Usage
+            usage_item = QTableWidgetItem(str(int(data['On Site Usage'])))
+            self.utilization_table.setItem(row, 3, usage_item)
+        
+        # Reapply column widths instead of resizing to contents
+        self._set_table_column_widths(
+            self.utilization_table,
+            [100, 200, 80, 80]  # Wider Utilization column for progress bar
+        )
         
     def _load_initial_data(self):
         """Load initial data files if available."""
-        try:
-            self.data_handler.load_facilities_data("Facilities_Updated.xlsm")
-        except Exception as e:
-            QMessageBox.warning(self, "Warning", f"Could not load facilities data: {str(e)}")
+        # Removed automatic data loading
+        pass
             
     def _load_facilities_file(self):
         """Load facilities Excel file."""
@@ -447,6 +662,32 @@ class MainWindow(QMainWindow):
                 "Please check the terminal/console for detailed error messages."
             )
             QMessageBox.warning(self, "Error", error_msg)
+
+    def _load_utilization_file(self):
+        """Load yard utilization data from a CSV file."""
+        try:
+            # Open file dialog
+            file_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Load Yard Utilization Data",
+                "",
+                "CSV Files (*.csv);;All Files (*)"
+            )
+            
+            if not file_path:  # User cancelled
+                return
+                
+            # Load the data
+            success = self.data_handler.load_utilization_data(file_path)
+            
+            if success:
+                # Update tables
+                self._update_cart_balance_tables()
+                QMessageBox.information(self, "Success", "Utilization data loaded successfully!")
+            else:
+                QMessageBox.warning(self, "Error", "Failed to load utilization data")
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Failed to load utilization data: {str(e)}")
             
     def _process_site_action(self, action: str):
         """Process site action (DEPART or NEED) for multiple sites."""
@@ -519,28 +760,90 @@ class MainWindow(QMainWindow):
         if not sites:
             return
             
-        # Process both sides of arrows for site pairs
-        all_sites = []
-        for site in sites:
-            if "->" in site:
-                start_site, end_site = site.split("->")
-                all_sites.extend([start_site.strip(), end_site.strip()])
-            else:
-                all_sites.append(site.strip())
+        # Split input into lines and process each line
+        lines = [line.strip() for line in sites if line.strip()]
+        
+        # Track consecutive appearances for start and end positions separately
+        start_site_appearances = {}  # site -> list of line numbers where it appears as start
+        end_site_appearances = {}    # site -> list of line numbers where it appears as end
+        single_site_appearances = {} # for lines without arrows
+        
+        for line_num, line in enumerate(lines):
+            if "->" in line:
+                start_site, end_site = line.split("->")
+                start_site = start_site.strip()
+                end_site = end_site.strip()
                 
-        # Remove duplicates while preserving order
-        seen = set()
-        unique_sites = [x for x in all_sites if not (x in seen or seen.add(x))]
+                if start_site not in start_site_appearances:
+                    start_site_appearances[start_site] = []
+                start_site_appearances[start_site].append(line_num)
+                
+                if end_site not in end_site_appearances:
+                    end_site_appearances[end_site] = []
+                end_site_appearances[end_site].append(line_num)
+            else:
+                site = line.strip()
+                if site not in single_site_appearances:
+                    single_site_appearances[site] = []
+                single_site_appearances[site].append(line_num)
+        
+        # Function to check if appearances are consecutive
+        def has_consecutive_appearances(line_numbers):
+            if len(line_numbers) <= 1:
+                return False
+            sorted_lines = sorted(line_numbers)
+            for i in range(1, len(sorted_lines)):
+                if sorted_lines[i] - sorted_lines[i-1] == 1:
+                    return True
+            return False
+        
+        # Create list of sites to exclude based on consecutive appearances in the same position
+        sites_to_exclude = set()
+        for site, line_nums in start_site_appearances.items():
+            if has_consecutive_appearances(line_nums):
+                sites_to_exclude.add(site)
+                
+        for site, line_nums in end_site_appearances.items():
+            if has_consecutive_appearances(line_nums):
+                sites_to_exclude.add(site)
+                
+        for site, line_nums in single_site_appearances.items():
+            if has_consecutive_appearances(line_nums):
+                sites_to_exclude.add(site)
+        
+        # Build final list of sites to display
+        all_sites = []
+        for line in lines:
+            if "->" in line:
+                start_site, end_site = line.split("->")
+                start_site = start_site.strip()
+                end_site = end_site.strip()
+                
+                if start_site not in sites_to_exclude and start_site not in all_sites:
+                    all_sites.append(start_site)
+                if end_site not in sites_to_exclude and end_site not in all_sites:
+                    all_sites.append(end_site)
+            else:
+                site = line.strip()
+                if site not in sites_to_exclude and site not in all_sites:
+                    all_sites.append(site)
+                
+        # Use the filtered list
+        unique_sites = all_sites
             
-        # Set up columns (removed state, added demand info)
-        columns = ['Name', 'Type', 'Address', 'Region', 'Demand', 'Full Day Demand', 'Supply', 'Balance']
+        # Set up columns (added utilization columns)
+        columns = [
+            'Name', 'Type', 'Address', 'Region', 
+            'Demand', 'Full Day Demand', 'Supply', 'Balance',
+            'Utilization', 'Capacity', 'Usage'
+        ]
         self.site_info_table.setColumnCount(len(columns))
         self.site_info_table.setHorizontalHeaderLabels(columns)
         
         # Set column widths
         self._set_table_column_widths(
             self.site_info_table,
-            [80, 70, 200, 70, 70, 100, 70, 75]  # Adjusted widths for new columns
+            [80, 70, 200, 70, 70, 100, 70, 75, 100, 70, 70]  # Added widths for new columns
         )
         
         # Clear existing rows
@@ -572,25 +875,64 @@ class MainWindow(QMainWindow):
                     'Balance': site_info.get('Balance', 0)
                 }
                 
+                # Get utilization info
+                utilization_info = self.data_handler.get_utilization_info(site)
+                if utilization_info:
+                    utilization_data = {
+                        'Utilization': utilization_info['On Site Utilization'],
+                        'Capacity': utilization_info['On Site Capacity'],
+                        'Usage': utilization_info['On Site Usage']
+                    }
+                else:
+                    utilization_data = {
+                        'Utilization': 'N/A',
+                        'Capacity': 'N/A',
+                        'Usage': 'N/A'
+                    }
+                
                 # Combine all info
-                all_info = {**basic_info, **demand_info}
+                all_info = {**basic_info, **demand_info, **utilization_data}
                 
                 # Fill the row
                 for col, column_name in enumerate(columns):
                     value = all_info[column_name]
-                    item = QTableWidgetItem(str(value))
-                    item.setFont(font)
                     
-                    # Highlight negative balance
-                    if column_name == 'Balance' and float(value) < 0:
-                        item.setBackground(QColor(255, 0, 0))
+                    if column_name == 'Utilization':
+                        # Create progress bar for utilization
+                        progress_widget = QWidget()
+                        progress_layout = QHBoxLayout(progress_widget)
+                        progress_layout.setContentsMargins(4, 2, 4, 2)
                         
-                    self.site_info_table.setItem(row, col, item)
+                        if value == 'N/A':
+                            label = QLabel('N/A')
+                            label.setStyleSheet("color: white; background: transparent;")
+                        else:
+                            utilization = float(value)
+                            utilization_percentage = utilization * 100
+                            label = QLabel(f"{utilization_percentage:.2f}%")
+                            # Use our color helper method for the text color
+                            color = self._get_utilization_color(utilization_percentage)
+                            label.setStyleSheet(
+                                f"color: rgb({color.red()}, {color.green()}, {color.blue()}); "
+                                "background: transparent;"
+                            )
+                        progress_layout.addWidget(label)
+                        
+                        self.site_info_table.setCellWidget(row, col, progress_widget)
+                    else:
+                        item = QTableWidgetItem(str(value))
+                        item.setFont(font)
+                        
+                        # Highlight negative balance
+                        if column_name == 'Balance' and float(value) < 0:
+                            item.setBackground(QColor(255, 0, 0))
+                            
+                        self.site_info_table.setItem(row, col, item)
                 
         self.site_info_table.resizeColumnsToContents()
         
     def _find_nearby_sites(self):
-        """Find and display nearby sites."""
+        """Find nearby sites."""
         site = self.site_input.toPlainText().strip().split("->")[0]
         limit = int(self.limit_combo.currentText())
         cart_sites_only = self.cart_sites_only.isChecked()
@@ -611,19 +953,30 @@ class MainWindow(QMainWindow):
             
         # Set up table
         self.proximity_table.setRowCount(len(nearby_sites))
+        
+        # Always include all columns
         columns = ['name', 'address', 'state', 'region', 'distance']
         
-        # Always show cart data columns if cart sites filter is on
-        if cart_sites_only or any('Balance' in site for site in nearby_sites):
-            columns.extend(['Demand', 'Supply', 'Balance'])
+        # Add cart data and utilization columns
+        columns.extend(['Demand', 'Supply', 'Balance', 'Utilization', 'Capacity', 'Usage'])
             
         self.proximity_table.setColumnCount(len(columns))
         self.proximity_table.setHorizontalHeaderLabels(columns)
         
-        # Set column widths based on content type
-        widths = [80, 200, 70, 70, 75]  # Base columns: name, address, state, region, distance
-        if len(columns) > 5:  # If we have cart data columns
-            widths.extend([70, 70, 90])  # Demand, Supply, Balance
+        # Set widths to fit column titles and values
+        widths = [
+            85,   # name
+            200,  # address (keep wider for addresses)
+            65,   # state
+            65,   # region
+            90,   # distance (increased for decimal numbers)
+            80,   # Demand (increased for numbers)
+            80,   # Supply (increased for numbers)
+            80,   # Balance (increased for numbers)
+            85,   # Utilization (for percentage)
+            90,   # Capacity (increased for larger numbers like 337.0)
+            80    # Usage (increased for larger numbers like 229.0)
+        ]
             
         self._set_table_column_widths(self.proximity_table, widths)
         
@@ -631,16 +984,66 @@ class MainWindow(QMainWindow):
         for row, site_info in enumerate(nearby_sites):
             for col, field in enumerate(columns):
                 value = site_info.get(field, '')
-                if field == 'distance':
+                
+                # Special handling for utilization data
+                if field in ['Utilization', 'Capacity', 'Usage']:
+                    utilization_info = self.data_handler.get_utilization_info(site_info['name'])
+                    if utilization_info:
+                        if field == 'Utilization':
+                            try:
+                                utilization = float(utilization_info['On Site Utilization'])
+                                utilization_percentage = utilization * 100
+                                value = f"{utilization_percentage:.2f}%"
+                                item = QTableWidgetItem(value)
+                                item.setFont(QFont("Arial", 7))
+                                # Use our color helper method for the text color
+                                color = self._get_utilization_color(utilization_percentage)
+                                item.setForeground(color)
+                            except (ValueError, TypeError):
+                                value = 'N/A'
+                                item = QTableWidgetItem(value)
+                                item.setFont(QFont("Arial", 7))
+                        else:
+                            value = utilization_info.get(f'On Site {field}', 'N/A')
+                            if value == 'N/A' or value is None:
+                                value = 'N/A'
+                            item = QTableWidgetItem(str(value))
+                            item.setFont(QFont("Arial", 7))
+                    else:
+                        value = 'N/A'
+                        item = QTableWidgetItem(value)
+                        item.setFont(QFont("Arial", 7))
+                elif field == 'distance':
                     # Format distance to 2 decimal places
-                    value = f"{float(value):.2f}"
-                item = QTableWidgetItem(str(value))
-                item.setFont(QFont("Arial", 7))  # Ensure small font
+                    try:
+                        value = f"{float(value):.2f}"
+                    except (ValueError, TypeError):
+                        value = 'N/A'
+                    item = QTableWidgetItem(str(value))
+                    item.setFont(QFont("Arial", 7))  # Ensure small font
+                else:
+                    item = QTableWidgetItem(str(value))
+                    item.setFont(QFont("Arial", 7))  # Ensure small font
                 
                 # Highlight negative balance
-                if field == 'Balance' and site_info.get(field, 0) < 0:
-                    item.setBackground(QColor(255, 0, 0))
+                if field == 'Balance':
+                    try:
+                        balance = float(site_info.get(field, 0))
+                        if balance < 0:
+                            item.setBackground(QColor(255, 0, 0))
+                    except (ValueError, TypeError):
+                        pass
                     
                 self.proximity_table.setItem(row, col, item)
                 
-        self.proximity_table.resizeColumnsToContents() 
+        # Ensure headers are properly sized and aligned
+        try:
+            header = self.proximity_table.horizontalHeader()
+            if header is not None:
+                header.setMinimumHeight(30)  # Make header taller
+                header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)  # Center align headers
+                header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        except Exception as e:
+            print(f"Warning: Could not configure table header: {str(e)}")
+            
+        # Removed resizeColumnsToContents() to maintain our custom widths 
