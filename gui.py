@@ -101,6 +101,23 @@ class MainWindow(QMainWindow):
             QSplitter::handle:vertical {
                 height: 4px;
             }
+            QMenu {
+                background-color: #2b2b2b;
+                color: white;
+                border: 1px solid #404040;
+            }
+            QMenu::item {
+                background-color: transparent;
+                padding: 5px 20px;
+            }
+            QMenu::item:selected {
+                background-color: #2a5a8c;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #404040;
+                margin: 4px 0px;
+            }
         """)
         
         # Create main vertical splitter
@@ -376,9 +393,10 @@ class MainWindow(QMainWindow):
         # Define columns and widths once
         columns = [
             'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
+            'Utilization', 'Capacity', 'Usage',
             'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
         ]
-        column_widths = [100, 100, 80, 80, 80, 120, 80, 80, 80, 80]  # Increased Total Trailers width to 120
+        column_widths = [100, 100, 80, 80, 80, 100, 70, 70, 120, 80, 80, 80, 80]  # Added widths for utilization columns
 
         # Set up tables
         for table in [self.negative_balance_table, self.positive_balance_table]:
@@ -429,11 +447,13 @@ class MainWindow(QMainWindow):
         # Define columns - this must match the data from get_all_cart_sites
         columns = [
             'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
+            'Utilization', 'Capacity', 'Usage',
             'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
         ]
         
         numeric_columns = {
             'Demand', 'Supply', 'Balance',
+            'Capacity', 'Usage',
             'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
         }
         
@@ -441,25 +461,62 @@ class MainWindow(QMainWindow):
         table.setColumnCount(len(columns))
         table.setHorizontalHeaderLabels(columns)
         
-        # Column widths are now set in _create_cart_balance_section
-        
         # Fill data
         for row, site_data in enumerate(sites_data):
             for col, column in enumerate(columns):
-                value = site_data.get(column, 0 if column in numeric_columns else '')
-                
-                # Format value based on column type
-                if column in numeric_columns:
-                    try:
-                        # Check if value can be converted to a float
-                        float_value = float(value)
-                        item = QTableWidgetItem(f"{float_value:.2f}")
-                    except (ValueError, TypeError):
-                        item = QTableWidgetItem("0.00")
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if column == 'Utilization':
+                    # Get utilization info
+                    utilization_info = self.data_handler.get_utilization_info(site_data.get('Site Name', ''))
+                    if utilization_info:
+                        try:
+                            utilization = float(utilization_info['On Site Utilization'])
+                            utilization_percentage = utilization * 100
+                            value = f"{utilization_percentage:.2f}%"
+                            item = QTableWidgetItem(value)
+                            # Use our color helper method for the text color
+                            color = self._get_utilization_color(utilization_percentage)
+                            item.setForeground(color)
+                        except (ValueError, TypeError):
+                            item = QTableWidgetItem('N/A')
+                    else:
+                        item = QTableWidgetItem('N/A')
+                elif column in ['Capacity', 'Usage']:
+                    # Get utilization info for capacity and usage
+                    utilization_info = self.data_handler.get_utilization_info(site_data.get('Site Name', ''))
+                    if utilization_info:
+                        value = utilization_info.get(f'On Site {column}', 'N/A')
+                        if value != 'N/A':
+                            try:
+                                value = int(float(value))
+                                item = QTableWidgetItem(str(value))
+                            except (ValueError, TypeError):
+                                item = QTableWidgetItem('N/A')
+                        else:
+                            item = QTableWidgetItem('N/A')
+                    else:
+                        item = QTableWidgetItem('N/A')
                 else:
-                    item = QTableWidgetItem(str(value))
-                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    value = site_data.get(column, 0 if column in numeric_columns else '')
+                    # Format value based on column type
+                    if column in numeric_columns:
+                        try:
+                            float_value = float(value)
+                            item = QTableWidgetItem(f"{float_value:.2f}")
+                        except (ValueError, TypeError):
+                            item = QTableWidgetItem("0.00")
+                    else:
+                        item = QTableWidgetItem(str(value))
+                
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                
+                # Highlight negative balance
+                if column == 'Balance':
+                    try:
+                        balance = float(site_data.get(column, 0))
+                        if balance < 0:
+                            item.setBackground(QColor(255, 0, 0))
+                    except (ValueError, TypeError):
+                        pass
                 
                 table.setItem(row, col, item)
 
@@ -929,36 +986,61 @@ class MainWindow(QMainWindow):
         # Always include all columns
         columns = ['name', 'address', 'state', 'region', 'distance']
         
-        # Add cart data and utilization columns
-        columns.extend(['Demand', 'Supply', 'Balance', 'Utilization', 'Capacity', 'Usage'])
+        # Add cart data, utilization columns, and dwelling time columns
+        columns.extend(['Demand', 'Supply', 'Balance', 'Utilization', 'Capacity', 'Usage', 'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'])
             
         self.proximity_table.setColumnCount(len(columns))
         self.proximity_table.setHorizontalHeaderLabels(columns)
         
-        # Set widths to fit column titles and values
+        # Define numeric columns for consistent formatting
+        numeric_columns = {
+            'Demand', 'Supply', 'Balance', 'distance',
+            'Capacity', 'Usage', 'Total Trailers',
+            '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
+        }
+        
+        # Set optimized column widths
         widths = [
-            85,   # name
-            200,  # address (keep wider for addresses)
-            65,   # state
-            65,   # region
-            90,   # distance (increased for decimal numbers)
-            80,   # Demand (increased for numbers)
-            80,   # Supply (increased for numbers)
-            80,   # Balance (increased for numbers)
-            85,   # Utilization (for percentage)
-            90,   # Capacity (increased for larger numbers like 337.0)
-            80    # Usage (increased for larger numbers like 229.0)
+            80,   # name
+            150,  # address (reduced but still readable)
+            50,   # state
+            60,   # region
+            70,   # distance
+            70,   # Demand
+            70,   # Supply
+            70,   # Balance
+            85,   # Utilization
+            70,   # Capacity
+            70,   # Usage
+            120,  # Total Trailers (increased to match balance tables)
+            70,   # <24 Hrs
+            70,   # 24-72 Hrs
+            80,   # 72-168 Hrs (increased to match balance tables)
+            70    # >168 Hrs
         ]
             
         self._set_table_column_widths(self.proximity_table, widths)
         
+        # Create larger font for row values
+        row_font = QFont("Arial", 8)  # Increased from 7 to 8 to match other tables
+        
         # Fill data
         for row, site_info in enumerate(nearby_sites):
+            # Get dwelling info for the site
+            dwelling_info = self.data_handler.get_dwelling_info(site_info['name'])
+            
             for col, field in enumerate(columns):
-                value = site_info.get(field, '')
-                
+                # Handle dwelling time columns
+                if field in ['Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs']:
+                    value = dwelling_info.get(field, 'N/A') if dwelling_info else 'N/A'
+                    if value != 'N/A':
+                        try:
+                            value = f"{float(value):.2f}"
+                        except (ValueError, TypeError):
+                            value = 'N/A'
+                    item = QTableWidgetItem(str(value))
                 # Special handling for utilization data
-                if field in ['Utilization', 'Capacity', 'Usage']:
+                elif field in ['Utilization', 'Capacity', 'Usage']:
                     utilization_info = self.data_handler.get_utilization_info(site_info['name'])
                     if utilization_info:
                         if field == 'Utilization':
@@ -967,35 +1049,41 @@ class MainWindow(QMainWindow):
                                 utilization_percentage = utilization * 100
                                 value = f"{utilization_percentage:.2f}%"
                                 item = QTableWidgetItem(value)
-                                item.setFont(QFont("Arial", 7))
                                 # Use our color helper method for the text color
                                 color = self._get_utilization_color(utilization_percentage)
                                 item.setForeground(color)
                             except (ValueError, TypeError):
                                 value = 'N/A'
                                 item = QTableWidgetItem(value)
-                                item.setFont(QFont("Arial", 7))
                         else:
                             value = utilization_info.get(f'On Site {field}', 'N/A')
-                            if value == 'N/A' or value is None:
+                            if value != 'N/A' and value is not None:
+                                try:
+                                    value = f"{float(value):.2f}"
+                                except (ValueError, TypeError):
+                                    value = 'N/A'
+                            else:
                                 value = 'N/A'
                             item = QTableWidgetItem(str(value))
-                            item.setFont(QFont("Arial", 7))
                     else:
                         value = 'N/A'
                         item = QTableWidgetItem(value)
-                        item.setFont(QFont("Arial", 7))
-                elif field == 'distance':
-                    # Format distance to 2 decimal places
-                    try:
-                        value = f"{float(value):.2f}"
-                    except (ValueError, TypeError):
-                        value = 'N/A'
-                    item = QTableWidgetItem(str(value))
-                    item.setFont(QFont("Arial", 7))  # Ensure small font
                 else:
+                    # Get the value from site_info for all other fields
+                    value = site_info.get(field, '')
+                    
+                    # Format numeric values consistently
+                    if field in numeric_columns and value != '':
+                        try:
+                            value = f"{float(value):.2f}"
+                        except (ValueError, TypeError):
+                            value = 'N/A'
+                    
                     item = QTableWidgetItem(str(value))
-                    item.setFont(QFont("Arial", 7))  # Ensure small font
+                
+                # Apply consistent formatting to all cells
+                item.setFont(row_font)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 
                 # Highlight negative balance
                 if field == 'Balance':
@@ -1037,8 +1125,9 @@ class MainWindow(QMainWindow):
             success = self.data_handler.load_dwelling_data(file_path)
             
             if success:
-                # Update tables that might show dwelling data
+                # Update all tables that show dwelling data
                 self._update_site_info_multiple([])  # Clear and refresh the site info table
+                self._update_cart_balance_tables()   # Update balance tables
                 QMessageBox.information(self, "Success", "TEC dwelling data loaded successfully!")
             else:
                 QMessageBox.warning(

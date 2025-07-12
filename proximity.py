@@ -27,7 +27,7 @@ class ProximityAnalyzer:
         """Calculate distance between two coordinates in miles."""
         return geodesic(coord1, coord2).miles
         
-    def find_nearest_sites(self, site: str, limit: int = 5, max_distance: float = 50.0, cart_sites_only: bool = False) -> List[Dict]:
+    def find_nearest_sites(self, site: str, limit: int = 5, max_distance: float = 100.0, cart_sites_only: bool = False) -> List[Dict]:
         """Find nearest sites within specified distance."""
         if not self.data_handler.validate_site(site):
             return []

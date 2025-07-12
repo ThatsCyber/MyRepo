@@ -16,8 +16,6 @@ class DataHandler:
     def load_facilities_data(self, file_path: str) -> bool:
         """Load and validate facilities data from Excel or CSV file."""
         try:
-            print(f"Attempting to load facilities data from: {file_path}")
-            
             # Read CSV file with specific dtypes
             self.facilities_data = pd.read_csv(
                 file_path,
@@ -48,9 +46,6 @@ class DataHandler:
             # Convert site codes to uppercase
             self.facilities_data['name'] = self.facilities_data['name'].str.upper()
             
-            print(f"Successfully loaded facilities data with {len(self.facilities_data)} rows")
-            print(f"Columns: {self.facilities_data.columns.tolist()}")
-            
             return True
             
         except Exception as e:
@@ -61,8 +56,6 @@ class DataHandler:
     def load_cart_data(self, file_path: str) -> bool:
         """Load and validate cart supply & demand data from CSV."""
         try:
-            print(f"Attempting to load cart data from: {file_path}")
-            
             # Read CSV with specific dtypes to prevent conversion errors
             self.cart_data = pd.read_csv(
                 file_path,
@@ -77,8 +70,6 @@ class DataHandler:
                     'Full Day Demand': float
                 }
             )
-            
-            print(f"Loaded columns: {self.cart_data.columns.tolist()}")
             
             # Rename columns to match our internal naming
             self.cart_data = self.cart_data.rename(columns={
@@ -95,14 +86,6 @@ class DataHandler:
             numeric_columns = ['Demand', 'Supply', 'Balance', 'Full Day Demand']
             self.cart_data[numeric_columns] = self.cart_data[numeric_columns].fillna(0)
             
-            # Validate all cart sites exist in facilities data
-            if self.facilities_data is not None:
-                valid_sites = set(self.cart_data['Site'].unique()) - {''}
-                missing_sites = valid_sites - set(self.facilities_data['name'])
-                if missing_sites:
-                    print(f"Warning: Cart sites not found in facilities data: {missing_sites}")
-            
-            print("Cart data loaded successfully")
             return True
             
         except pd.errors.EmptyDataError:
@@ -131,34 +114,24 @@ class DataHandler:
             return None
             
         site = str(site).strip().upper()
-        print(f"Looking for dwelling info for site: {site}")
         
         # Try exact match first
         site_data = self.dwelling_data[self.dwelling_data['Shared Yard'].str.upper() == site]
-        if not site_data.empty:
-            print(f"Found exact match for {site}")
         
         if site_data.empty:
             # Try matching with the site code extraction method
             extracted_site = self._extract_site_code(site)
-            print(f"Trying extracted site code: {extracted_site}")
             site_data = self.dwelling_data[self.dwelling_data['Extracted_Site'] == extracted_site]
-            if not site_data.empty:
-                print(f"Found match using extracted site code: {extracted_site}")
         
         if site_data.empty:
             # Try matching without trailing numbers
             base_site = re.sub(r'\d+$', '', site)
-            print(f"Trying base site code: {base_site}")
             site_data = self.dwelling_data[
                 (self.dwelling_data['Extracted_Site'].str.startswith(base_site)) |
                 (self.dwelling_data['Shared Yard'].str.upper().str.startswith(base_site))
             ]
-            if not site_data.empty:
-                print(f"Found match using base site code: {base_site}")
         
         if site_data.empty:
-            print(f"No dwelling data found for site: {site}")
             return {
                 'Total Trailers': 0,
                 '<24 Hrs': 0,
@@ -167,16 +140,10 @@ class DataHandler:
                 '>168 Hrs': 0
             }
         
-        # Print the matched data
-        matched_row = site_data.iloc[0]
-        print(f"Found dwelling data for {site}:")
-        print(f"Matched row - Shared Yard: {matched_row['Shared Yard']}, Extracted: {matched_row['Extracted_Site']}")
-        print(f"Values: {matched_row[['Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs']].to_dict()}")
-        
         # Convert numeric values to float and handle NaN
         result = {}
         for column in ['Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs']:
-            value = matched_row[column]
+            value = site_data.iloc[0][column]
             result[column] = float(value) if pd.notna(value) else 0
         
         return result
@@ -191,8 +158,7 @@ class DataHandler:
             # If exact match fails, try to find a match using extraction logic
             extracted_code = self._extract_site_code(site)
             if not self.validate_site(extracted_code):
-                 print(f"Warning: Site '{site}' (extracted: '{extracted_code}') not found in facilities data.")
-                 return None
+                return None
             site = extracted_code # Use the valid extracted code
             
         matching_sites = self.facilities_data[self.facilities_data['name'] == site]
@@ -335,14 +301,11 @@ class DataHandler:
     def get_all_cart_sites(self) -> List[Dict]:
         """Get all sites with cart data, including balance and dwelling information."""
         if self.cart_data is None or self.facilities_data is None:
-            print("Cart data or facilities data is not loaded.")
             return []
             
         sites_data = []
         # Get unique sites from the cart data
         unique_sites = self.cart_data['Site'].unique()
-        
-        print(f"Found {len(unique_sites)} unique sites in cart data.")
 
         for site in unique_sites:
             if not site or pd.isna(site):
@@ -353,12 +316,6 @@ class DataHandler:
             
             if site_info and site_info.get('is_cart_site', False):
                 # Ensure all required keys are present
-                required_keys = [
-                    'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
-                    'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
-                ]
-                
-                # Use a dictionary comprehension to build the final dict, providing defaults
                 final_site_data = {
                     'Site Name': site_info.get('name', site),
                     'Region': site_info.get('region', 'Unknown'),
@@ -372,12 +329,7 @@ class DataHandler:
                     '>168 Hrs': site_info.get('>168 Hrs', 0)
                 }
                 sites_data.append(final_site_data)
-            elif site_info:
-                 print(f"Site {site} found but not marked as a cart site. Skipping.")
-            else:
-                 print(f"Could not retrieve info for site: {site}. Skipping.")
 
-        print(f"Processed {len(sites_data)} sites with cart and dwelling info.")
         return sites_data
 
     def load_utilization_data(self, file_path):
@@ -404,14 +356,12 @@ class DataHandler:
             
             return True
         except Exception as e:
-            print(f"Unexpected error loading utilization data: {str(e)}")  # Keep this for error handling
+            print(f"Error loading utilization data: {str(e)}")
             return False
 
     def load_dwelling_data(self, file_path: str) -> bool:
         """Load and validate TEC dwelling data from CSV file."""
         try:
-            print(f"Attempting to load TEC dwelling data from: {file_path}")
-            
             # Read CSV with specific dtypes to prevent conversion errors
             self.dwelling_data = pd.read_csv(
                 file_path,
@@ -425,8 +375,6 @@ class DataHandler:
                 }
             )
             
-            print(f"Loaded columns: {self.dwelling_data.columns.tolist()}")
-            
             # Clean up site codes and create extracted site codes
             self.dwelling_data['Shared Yard'] = self.dwelling_data['Shared Yard'].apply(
                 lambda x: str(x).strip().upper() if pd.notna(x) else ''
@@ -435,16 +383,10 @@ class DataHandler:
             # Add extracted site codes for better matching
             self.dwelling_data['Extracted_Site'] = self.dwelling_data['Shared Yard'].apply(self._extract_site_code)
             
-            # Print unique site codes for debugging
-            print("\nUnique site codes in dwelling data:")
-            for yard, extracted in zip(self.dwelling_data['Shared Yard'].unique(), self.dwelling_data['Extracted_Site'].unique()):
-                print(f"Original: {yard} -> Extracted: {extracted}")
-            
             # Fill NaN values with 0 for numeric columns
             numeric_columns = ['Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs']
             self.dwelling_data[numeric_columns] = self.dwelling_data[numeric_columns].fillna(0)
             
-            print(f"\nSuccessfully loaded dwelling data with {len(self.dwelling_data)} rows")
             return True
             
         except Exception as e:
