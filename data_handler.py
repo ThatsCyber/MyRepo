@@ -283,8 +283,8 @@ class DataHandler:
         # Filter for sites with balance >= 0
         high_balance_sites = [site for site in all_sites if site.get('Balance', 0) >= 0]
         
-        # Sort by most positive first
-        return sorted(high_balance_sites, key=lambda x: x.get('Balance', 0), reverse=True)
+        # Sort by Total Trailers first (most trailers first), then by Balance
+        return sorted(high_balance_sites, key=lambda x: (x.get('Total Trailers', 0), x.get('Balance', 0)), reverse=True)
 
     def get_negative_balance_sites(self):
         """Get sites with negative balance (demand > supply)."""
