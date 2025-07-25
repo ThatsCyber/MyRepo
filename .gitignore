@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Excel temporary files
+~$*.xls*
+*.xlk
+
+# Data files (user-specific data that shouldn't be versioned)
+*_[0-9]*.csv
+*_[0-9]*.xlsx
+*_[0-9]*.xlsm
+All_Dwelling_TEC_Tra_*.csv
+Supply_&_Demand_*.csv
+Yard_Utilization_*.csv
+Facilities_Updated\ \(1\).xlsm
+Facilities_Updated.xlsm\ -\ Facilities_Updated.csv
+
+# Windows
+Thumbs.db
+Desktop.ini 

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 320px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      margin: 0;
+      background: #f8f9fa;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+      color: #343a40;
+      font-weight: 600;
+    }
+    
+    .header .subtitle {
+      margin: 4px 0 0 0;
+      font-size: 12px;
+      color: #6c757d;
+    }
+    
+    .status-section {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .status-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .status-label {
+      font-weight: 500;
+      color: #495057;
+    }
+    
+    .status-value {
+      color: #6c757d;
+      font-size: 12px;
+    }
+    
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-left: 8px;
+    }
+    
+    .status-indicator.active {
+      background: #28a745;
+    }
+    
+    .status-indicator.inactive {
+      background: #dc3545;
+    }
+    
+    .schedule-section {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .schedule-title {
+      font-weight: 600;
+      color: #343a40;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .schedule-times {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+      font-size: 11px;
+      color: #6c757d;
+    }
+    
+    .schedule-time {
+      padding: 4px 6px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      text-align: center;
+    }
+    
+    .controls-section {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    
+    .toggle-label {
+      font-weight: 500;
+      color: #495057;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.3s;
+      border-radius: 24px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: #28a745;
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+    
+    .button {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      margin-bottom: 8px;
+    }
+    
+    .button:last-child {
+      margin-bottom: 0;
+    }
+    
+    .button.primary {
+      background: #007bff;
+      color: white;
+    }
+    
+    .button.primary:hover {
+      background: #0056b3;
+    }
+    
+    .button.secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .button.secondary:hover {
+      background: #545b62;
+    }
+    
+    .button:disabled {
+      background: #e9ecef;
+      color: #6c757d;
+      cursor: not-allowed;
+    }
+    
+    .log-section {
+      background: white;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid #e9ecef;
+    }
+    
+    .log-title {
+      font-weight: 600;
+      color: #343a40;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .log-entries {
+      max-height: 120px;
+      overflow-y: auto;
+      font-size: 11px;
+    }
+    
+    .log-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+    
+    .log-time {
+      color: #6c757d;
+      font-size: 10px;
+    }
+    
+    .log-status {
+      font-weight: 500;
+    }
+    
+    .log-status.success {
+      color: #28a745;
+    }
+    
+    .log-status.error {
+      color: #dc3545;
+    }
+    
+    .loading {
+      text-align: center;
+      color: #6c757d;
+      font-style: italic;
+    }
+    
+    .next-download {
+      font-size: 12px;
+      color: #28a745;
+      font-weight: 500;
+      text-align: center;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📥 QuickSight Auto Downloader</h1>
+    <div class="subtitle">Supply & Demand Automation</div>
+  </div>
+  
+  <div class="status-section">
+    <div class="status-row">
+      <span class="status-label">Auto Download</span>
+      <div style="display: flex; align-items: center;">
+        <span class="status-value" id="autoStatus">Loading...</span>
+        <div class="status-indicator" id="autoIndicator"></div>
+      </div>
+    </div>
+    
+    <div class="status-row">
+      <span class="status-label">Next Download</span>
+      <span class="status-value" id="nextDownload">Calculating...</span>
+    </div>
+    
+    <div class="status-row">
+      <span class="status-label">Downloads Today</span>
+      <span class="status-value" id="downloadsToday">0</span>
+    </div>
+  </div>
+  
+  <div class="schedule-section">
+    <div class="schedule-title">📅 Daily Schedule (7 AM - 5 PM)</div>
+    <div class="schedule-times" id="scheduleContainer">
+      <div class="loading">Loading schedule...</div>
+    </div>
+  </div>
+  
+  <div class="controls-section">
+    <div class="toggle-row">
+      <span class="toggle-label">Enable Auto Download</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="autoToggle">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    
+    <button class="button primary" id="manualDownload">
+      📥 Download Now
+    </button>
+    
+    <button class="button secondary" id="resetSchedule">
+      🔄 Reset Schedule
+    </button>
+  </div>
+  
+  <div class="controls-section">
+    <div style="font-weight: 600; color: #343a40; margin-bottom: 8px; font-size: 13px;">
+      🎯 Simple Recording Setup
+    </div>
+    
+    <button class="button primary" id="startRecording">
+      🔴 Start Recording
+    </button>
+    
+    <button class="button secondary" id="testDownload">
+      ⚡ Test Download
+    </button>
+    
+    <div style="font-size: 11px; color: #6c757d; margin-top: 8px; line-height: 1.4;">
+      1. Click "Start Recording"<br>
+      2. Click the 3-dots menu on Supply & Demand chart<br>
+      3. Click "Export to CSV"<br>
+      4. Use "Test Download" to replay
+    </div>
+  </div>
+  
+  <div class="log-section">
+    <div class="log-title">📋 Recent Activity</div>
+    <div class="log-entries" id="logContainer">
+      <div class="loading">Loading log...</div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html> 
