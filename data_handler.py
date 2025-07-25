@@ -10,6 +10,7 @@ class DataHandler:
         self.facilities_data = None
         self.cart_data = None
         self.regions_data = None
+<<<<<<< HEAD
         self.utilization_data = None  # Add this line
         self.dwelling_data = None # Add this line
         
@@ -51,11 +52,53 @@ class DataHandler:
         except Exception as e:
             print(f"Error loading facilities data: {str(e)}")
             self.facilities_data = None
+=======
+        
+    def load_facilities_data(self, file_path: str) -> bool:
+        """Load and validate facilities data from Excel file."""
+        try:
+            # Read Excel file with string dtype for 'name' column to prevent date conversion
+            self.facilities_data = pd.read_excel(
+                file_path,
+                sheet_name='Facilities_Updated',
+                dtype={'name': str}
+            )
+            
+            # Clean up site names to ensure proper formatting
+            self.facilities_data['name'] = self.facilities_data['name'].apply(
+                lambda x: str(x).strip().upper()
+            )
+            
+            # Validate required columns
+            required_columns = {'name', 'type', 'address', 'state', 'region', 'latitude', 'longitude'}
+            missing_columns = required_columns - set(self.facilities_data.columns)
+            if missing_columns:
+                raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+            
+            # Validate that there are no duplicate site names
+            duplicate_sites = self.facilities_data['name'].duplicated()
+            if duplicate_sites.any():
+                duplicated_names = self.facilities_data[duplicate_sites]['name'].tolist()
+                raise ValueError(f"Found duplicate site names: {', '.join(duplicated_names)}")
+            
+            # Print summary
+            print(f"Successfully loaded {len(self.facilities_data)} facilities")
+            print(f"Unique regions: {', '.join(sorted(self.facilities_data['region'].unique()))}")
+            
+            return True
+        except Exception as e:
+            print(f"Error loading facilities data: {str(e)}")
+>>>>>>> 61d5c1665132e8bbcd67e0bc241af6e1a79bc740
             return False
     
     def load_cart_data(self, file_path: str) -> bool:
         """Load and validate cart supply & demand data from CSV."""
         try:
+<<<<<<< HEAD
+=======
+            print(f"Attempting to load cart data from: {file_path}")
+            
+>>>>>>> 61d5c1665132e8bbcd67e0bc241af6e1a79bc740
             # Read CSV with specific dtypes to prevent conversion errors
             self.cart_data = pd.read_csv(
                 file_path,
@@ -71,6 +114,11 @@ class DataHandler:
                 }
             )
             
+<<<<<<< HEAD
+=======
+            print(f"Loaded columns: {self.cart_data.columns.tolist()}")
+            
+>>>>>>> 61d5c1665132e8bbcd67e0bc241af6e1a79bc740
             # Rename columns to match our internal naming
             self.cart_data = self.cart_data.rename(columns={
                 'Site Name': 'Site',
@@ -86,6 +134,17 @@ class DataHandler:
             numeric_columns = ['Demand', 'Supply', 'Balance', 'Full Day Demand']
             self.cart_data[numeric_columns] = self.cart_data[numeric_columns].fillna(0)
             
+<<<<<<< HEAD
+=======
+            # Validate all cart sites exist in facilities data
+            if self.facilities_data is not None:
+                valid_sites = set(self.cart_data['Site'].unique()) - {''}
+                missing_sites = valid_sites - set(self.facilities_data['name'])
+                if missing_sites:
+                    print(f"Warning: Cart sites not found in facilities data: {missing_sites}")
+            
+            print("Cart data loaded successfully")
+>>>>>>> 61d5c1665132e8bbcd67e0bc241af6e1a79bc740
             return True
             
         except pd.errors.EmptyDataError:
@@ -108,6 +167,7 @@ class DataHandler:
         site = str(site).strip().upper()
         return site in self.facilities_data['name'].values
     
+<<<<<<< HEAD
     def get_dwelling_info(self, site: str = "") -> Optional[Dict]:
         """Get dwelling information for a specific site."""
         if self.dwelling_data is None or not site:
@@ -150,16 +210,24 @@ class DataHandler:
 
     def get_site_info(self, site: str) -> Optional[Dict]:
         """Get site information including cart data and dwelling data if available."""
+=======
+    def get_site_info(self, site: str) -> Optional[Dict]:
+        """Get site information including cart data if available."""
+>>>>>>> 61d5c1665132e8bbcd67e0bc241af6e1a79bc740
         if self.facilities_data is None:
             return None
             
         site = str(site).strip().upper()
         if not self.validate_site(site):
+<<<<<<< HEAD
             # If exact match fails, try to find a match using extraction logic
             extracted_code = self._extract_site_code(site)
             if not self.validate_site(extracted_code):
                 return None
             site = extracted_code # Use the valid extracted code
+=======
+            return None
+>>>>>>> 61d5c1665132e8bbcd67e0bc241af6e1a79bc740
             
         matching_sites = self.facilities_data[self.facilities_data['name'] == site]
         
@@ -168,6 +236,7 @@ class DataHandler:
             
         site_data = matching_sites.iloc[0].to_dict()
         
+<<<<<<< HEAD
         # Initialize cart data fields
         site_data.update({
             'is_cart_site': False,
@@ -213,6 +282,20 @@ class DataHandler:
                     '72-168 Hrs': dwelling_info.get('72-168 Hrs', 0),
                     '>168 Hrs': dwelling_info.get('>168 Hrs', 0)
                 })
+=======
+        if self.cart_data is not None:
+            cart_info = self.cart_data[self.cart_data['Site'] == site]
+            if not cart_info.empty:
+                site_data.update({
+                    'is_cart_site': True,
+                    'Demand': cart_info.iloc[0]['Demand'],
+                    'Full Day Demand': cart_info.iloc[0]['Full Day Demand'],
+                    'Supply': cart_info.iloc[0]['Supply'],
+                    'Balance': cart_info.iloc[0]['Balance']
+                })
+            else:
+                site_data['is_cart_site'] = False
+>>>>>>> 61d5c1665132e8bbcd67e0bc241af6e1a79bc740
                 
         return site_data
     
@@ -274,6 +357,7 @@ class DataHandler:
             
         return result 
 
+<<<<<<< HEAD
     def get_high_balance_sites(self):
         """Get sites with non-negative balance (supply >= demand)."""
         all_sites = self.get_all_cart_sites()
@@ -508,3 +592,85 @@ class DataHandler:
                 'On Site Usage': float(usage)
             })
         return result 
+=======
+    def get_negative_balance_sites(self):
+        """Get sites with negative balance (demand > supply)."""
+        if self.cart_data is None:
+            return []
+            
+        sites_data = []
+        for site in self.cart_data['Site'].unique():
+            if not site:  # Skip empty site names
+                continue
+                
+            site_data = self.cart_data[self.cart_data['Site'] == site]
+            if site_data.empty:
+                continue
+                
+            try:
+                demand = float(site_data['Demand'].sum())
+                supply = float(site_data['Supply'].sum())
+                balance = supply - demand
+                
+                if balance < 0:
+                    region = 'Unknown'
+                    if 'Region' in site_data.columns:
+                        # Convert to list and get first non-empty region
+                        regions = site_data['Region'].tolist()
+                        valid_regions = [r for r in regions if r and pd.notna(r)]
+                        if valid_regions:
+                            region = str(valid_regions[0])
+                    
+                    sites_data.append({
+                        'Site Name': site,
+                        'Region': region,
+                        'Demand': demand,
+                        'Supply': supply,
+                        'Balance': balance
+                    })
+            except (ValueError, TypeError) as e:
+                print(f"Error processing site {site}: {str(e)}")
+                continue
+                
+        return sorted(sites_data, key=lambda x: x['Balance'])  # Sort by most negative first 
+
+    def get_all_cart_sites(self) -> List[Dict]:
+        """Get all sites with cart data, including balance information."""
+        if self.cart_data is None:
+            return []
+            
+        sites_data = []
+        for site in self.cart_data['Site'].unique():
+            if not site:  # Skip empty site names
+                continue
+                
+            site_data = self.cart_data[self.cart_data['Site'] == site]
+            if site_data.empty:
+                continue
+                
+            try:
+                demand = float(site_data['Demand'].sum())
+                supply = float(site_data['Supply'].sum())
+                balance = supply - demand
+                
+                region = 'Unknown'
+                if 'Region' in site_data.columns:
+                    # Convert to list and get first non-empty region
+                    regions = site_data['Region'].tolist()
+                    valid_regions = [r for r in regions if r and pd.notna(r)]
+                    if valid_regions:
+                        region = str(valid_regions[0])
+                
+                sites_data.append({
+                    'Site Name': site,
+                    'Region': region,
+                    'Demand': demand,
+                    'Supply': supply,
+                    'Balance': balance
+                })
+            except (ValueError, TypeError) as e:
+                print(f"Error processing site {site}: {str(e)}")
+                continue
+                
+        return sites_data 
+>>>>>>> 61d5c1665132e8bbcd67e0bc241af6e1a79bc740
