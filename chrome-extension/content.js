@@ -170,130 +170,240 @@ function stopSimpleRecording() {
 // AUTOMATED DOWNLOAD using simple recording
 function performSimpleDownload() {
   console.log('🚀 Starting simple automated download...');
+  console.log('📋 Using recorded selectors from user session');
+
+  // Step 0: First, activate the Supply & Demand chart to make menu buttons visible
+  console.log('🎯 Step 0: Activating Supply & Demand chart to reveal menu buttons...');
   
-  // Load recording
-  let recordingData;
-  try {
-    console.log('📂 Loading recording from localStorage...');
-    const stored = localStorage.getItem('quicksight_simple_recording');
-    if (!stored) {
-      console.log('❌ No recording found! Please record first with startSimpleRecording()');
-      alert('❌ No recording found! Please record first by clicking "Start Recording" and following the steps.');
-      return;
+  // Find the Supply & Demand chart container/title
+  let chartElement = null;
+  
+  // Method 1: Look for the visual title container with "Supply & Demand" text
+  const titleContainers = document.querySelectorAll('.visual-title-container');
+  for (const container of titleContainers) {
+    const text = container.textContent?.trim();
+    if (text === 'Supply & Demand') {
+      chartElement = container;
+      console.log('✅ Found Supply & Demand chart by title container');
+      break;
     }
-    recordingData = JSON.parse(stored);
-    console.log('✅ Recording loaded successfully:', recordingData);
-  } catch (error) {
-    console.error('❌ Error loading recording:', error);
-    alert('❌ Error loading recording: ' + error.message);
-    return;
   }
   
-  console.log('📋 Using recorded data:', recordingData);
-  
-  // Step 1: Find and click menu button
-  console.log('🔍 Step 1: Finding menu button...');
-  
-  let menuButton = null;
-  
-  // Try each selector for menu button
-  for (const selector of recordingData.menuButton.selector) {
-    try {
-      if (selector.includes(':contains')) {
-        // Handle text-based selectors manually
-        continue;
-      }
-      
-      const element = document.querySelector(selector);
-      if (element && element.offsetParent !== null) {
-        console.log(`✅ Found menu button with: ${selector}`);
-        menuButton = element;
+  // Method 2: If not found, look for any element with aria-label="visual title" containing Supply & Demand
+  if (!chartElement) {
+    const visualTitles = document.querySelectorAll('[aria-label="visual title"]');
+    for (const title of visualTitles) {
+      const text = title.textContent?.trim();
+      if (text === 'Supply & Demand') {
+        chartElement = title;
+        console.log('✅ Found Supply & Demand chart by aria-label');
         break;
       }
-    } catch (e) {
-      console.log(`⚠️ Selector failed: ${selector}`);
     }
   }
   
-  // Fallback: look for exact data-automation-id we know works
-  if (!menuButton) {
-    console.log('🔍 Fallback: Looking for analysis_visual_dropdown_menu_button...');
-    menuButton = document.querySelector('[data-automation-id="analysis_visual_dropdown_menu_button"]');
-  }
-  
-  if (!menuButton) {
-    console.log('❌ Could not find menu button');
-    return;
-  }
-  
-  // Click menu button
-  console.log('🖱️ Clicking menu button...');
-  menuButton.click();
-  
-  // Step 2: Wait and find export button
-  setTimeout(() => {
-    console.log('🔍 Step 2: Finding export button...');
-    
-    let exportButton = null;
-    
-    // Try recorded selectors for export button
-    for (const selector of recordingData.exportButton.selector) {
-      try {
-        if (selector.includes(':contains')) {
-          // Find by text content manually
-          const menuItems = document.querySelectorAll('li[role="menuitem"]');
-          for (const item of menuItems) {
-            if (item.textContent?.trim() === 'Export to CSV') {
-              exportButton = item;
-              break;
-            }
-          }
-        } else {
-          const element = document.querySelector(selector);
-          if (element && element.offsetParent !== null) {
-            console.log(`✅ Found export button with: ${selector}`);
-            exportButton = element;
-            break;
-          }
-        }
-      } catch (e) {
-        console.log(`⚠️ Export selector failed: ${selector}`);
-      }
-      
-      if (exportButton) break;
-    }
-    
-    // Fallback: look for dashboard_visual_dropdown_export
-    if (!exportButton) {
-      console.log('🔍 Fallback: Looking for dashboard_visual_dropdown_export...');
-      exportButton = document.querySelector('[data-automation-id="dashboard_visual_dropdown_export"]');
-    }
-    
-    // Final fallback: text search
-    if (!exportButton) {
-      console.log('🔍 Final fallback: Text search for Export to CSV...');
-      const allElements = document.querySelectorAll('*');
-      for (const element of allElements) {
-        if (element.textContent?.trim() === 'Export to CSV' && element.offsetParent) {
-          exportButton = element;
+  // Method 3: Broader search - look for any element containing "Supply & Demand" text
+  if (!chartElement) {
+    console.log('🔍 Broader search for Supply & Demand chart...');
+    const allElements = document.querySelectorAll('*');
+    for (const element of allElements) {
+      const text = element.textContent?.trim();
+      if (text === 'Supply & Demand' && element.offsetParent !== null) {
+        // Make sure it's a reasonable container (has some size)
+        const rect = element.getBoundingClientRect();
+        if (rect.width > 50 && rect.height > 20) {
+          chartElement = element;
+          console.log('✅ Found Supply & Demand chart by text search');
           break;
         }
       }
     }
+  }
+  
+  if (!chartElement) {
+    console.error('❌ CRITICAL: Could not find the Supply & Demand chart to activate');
+    console.log('💡 Make sure you are on the QuickSight dashboard with the Supply & Demand chart visible');
+    return false;
+  }
+  
+  // Activate the chart by simulating hover and focus
+  console.log('🖱️ Activating chart with hover and focus events...');
+  try {
+    // Create and dispatch mouse events to simulate hover
+    const mouseEnterEvent = new MouseEvent('mouseenter', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
     
-    if (!exportButton) {
-      console.log('❌ Could not find export button');
-      return;
+    const mouseOverEvent = new MouseEvent('mouseover', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    
+    // Dispatch hover events
+    chartElement.dispatchEvent(mouseEnterEvent);
+    chartElement.dispatchEvent(mouseOverEvent);
+    
+    // Also try focus if the element can be focused
+    if (chartElement.focus && typeof chartElement.focus === 'function') {
+      chartElement.focus();
     }
     
-    // Click export button
-    console.log('🖱️ Clicking export button...');
-    exportButton.click();
+    // Try clicking on the chart area (but not the menu button yet)
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    chartElement.dispatchEvent(clickEvent);
     
-    console.log('🎉 Simple download completed!');
-    console.log('📁 Check your Downloads folder for the CSV file');
+    console.log('✅ Chart activation events dispatched');
     
-  }, 1500);
+  } catch (error) {
+    console.error('❌ Error activating chart:', error);
+    // Continue anyway, maybe the buttons are already visible
+  }
+  
+  // Wait a moment for the UI to update and show the menu buttons
+  console.log('⏳ Waiting for menu buttons to become visible...');
+  
+  setTimeout(() => {
+    proceedWithDownload();
+  }, 500); // Give it 500ms for the buttons to appear
+}
+
+function proceedWithDownload() {
+  // Step 1: Find the correct menu button using exact recorded criteria
+  console.log('🔍 Step 1: Searching for Supply & Demand menu button...');
+  
+  // First try: Find by data-automation-id AND aria-label containing "Supply & Demand"
+  let correctMenuButton = null;
+  const allMenuButtons = document.querySelectorAll('[data-automation-id="analysis_visual_dropdown_menu_button"]');
+  
+  console.log(`📊 Found ${allMenuButtons.length} buttons with analysis_visual_dropdown_menu_button`);
+
+  // Look for the specific Supply & Demand button
+  for (const button of allMenuButtons) {
+    const ariaLabel = button.getAttribute('aria-label') || '';
+    console.log(`🔍 Checking button with aria-label: "${ariaLabel}"`);
+    
+    if (ariaLabel.includes('Supply & Demand')) {
+      correctMenuButton = button;
+      console.log('✅ Found the correct Supply & Demand menu button!');
+      console.log(`   - Full aria-label: "${ariaLabel}"`);
+      console.log(`   - Is visible: ${button.offsetParent !== null}`);
+      break;
+    }
+  }
+
+  if (!correctMenuButton) {
+    console.error('❌ CRITICAL: Could not find the Supply & Demand menu button after chart activation');
+    console.log('🔍 Available buttons with analysis_visual_dropdown_menu_button:');
+    allMenuButtons.forEach((btn, index) => {
+      const label = btn.getAttribute('aria-label') || 'No aria-label';
+      const isVisible = btn.offsetParent !== null;
+      console.log(`   ${index + 1}. "${label}" (visible: ${isVisible})`);
+    });
+    
+    // Try to provide helpful guidance
+    if (allMenuButtons.length === 0) {
+      console.log('💡 No menu buttons found even after activation. Chart may not be fully loaded.');
+      console.log('💡 Try waiting a moment and running the script again.');
+    } else {
+      console.log('💡 Menu buttons exist but none match "Supply & Demand". Is the chart visible on screen?');
+    }
+    return false;
+  }
+  
+  // Step 2: Click the menu button
+  console.log('🖱️ Step 2: Clicking the Supply & Demand menu button...');
+  try {
+    correctMenuButton.click();
+    console.log('✅ Menu button clicked successfully');
+  } catch (error) {
+    console.error('❌ Error clicking menu button:', error);
+    return false;
+  }
+
+  // Step 3: Wait for menu to appear and find export button
+  console.log('⏳ Step 3: Waiting for dropdown menu to appear...');
+  
+  // Use a more robust approach with retries
+  let attempts = 0;
+  const maxAttempts = 10;
+  const retryInterval = 200; // Check every 200ms
+  
+  const findAndClickExport = () => {
+    attempts++;
+    console.log(`🔍 Attempt ${attempts}/${maxAttempts}: Looking for export button...`);
+    
+    // Method 1: Try by data-automation-id (most reliable)
+    let exportButton = document.querySelector('[data-automation-id="dashboard_visual_dropdown_export"]');
+    
+    if (exportButton) {
+      console.log('✅ Found export button by data-automation-id');
+    } else {
+      // Method 2: Try by text content within menu items
+      console.log('🔍 Fallback: Searching by text content...');
+      const menuItems = document.querySelectorAll('li[role="menuitem"]');
+      for (const item of menuItems) {
+        const text = item.textContent?.trim();
+        if (text === 'Export to CSV') {
+          exportButton = item;
+          console.log('✅ Found export button by text content');
+          break;
+        }
+      }
+    }
+
+    if (exportButton) {
+      // Check if button is visible and clickable
+      if (exportButton.offsetParent !== null) {
+        console.log('🖱️ Step 4: Clicking export button...');
+        try {
+          exportButton.click();
+          console.log('🎉 Export button clicked successfully!');
+          console.log('📁 Download should start shortly. Check your Downloads folder.');
+          return true;
+        } catch (error) {
+          console.error('❌ Error clicking export button:', error);
+          return false;
+        }
+      } else {
+        console.log('⚠️ Export button found but not visible, retrying...');
+      }
+    } else {
+      console.log(`⚠️ Export button not found on attempt ${attempts}`);
+      
+      // Debug: Show what menu items are available
+      if (attempts === 1) {
+        const availableItems = document.querySelectorAll('li[role="menuitem"]');
+        console.log('🔍 Available menu items:');
+        availableItems.forEach((item, index) => {
+          const text = item.textContent?.trim();
+          const dataId = item.getAttribute('data-automation-id');
+          const isVisible = item.offsetParent !== null;
+          console.log(`   ${index + 1}. "${text}" (data-id: ${dataId}, visible: ${isVisible})`);
+        });
+      }
+    }
+    
+    // Retry if we haven't reached max attempts
+    if (attempts < maxAttempts) {
+      setTimeout(findAndClickExport, retryInterval);
+    } else {
+      console.error('❌ FAILED: Could not find or click export button after all attempts');
+      console.log('💡 The menu may not have opened properly or the export option might not be available');
+      return false;
+    }
+  };
+  
+  // Start looking for export button after a short delay
+  setTimeout(findAndClickExport, 300);
+  
+  return true;
 }
 
 // Visual indicator functions
@@ -535,46 +645,56 @@ function debugAllButtons() {
   const allButtons = document.querySelectorAll('button');
   let buttonList = [];
   
+  console.log(`🔍 Found ${allButtons.length} total buttons on page`);
+  
   allButtons.forEach((button, index) => {
-    if (!button.offsetParent) return; // Skip hidden buttons
-    
     const ariaLabel = button.getAttribute('aria-label') || '';
     const dataId = button.getAttribute('data-automation-id') || '';
     const title = button.getAttribute('title') || '';
     const className = button.className || '';
     const text = button.textContent?.trim().substring(0, 30) || '';
+    const isVisible = button.offsetParent !== null;
     
-    // Only show buttons that might be relevant
-    if (ariaLabel.toLowerCase().includes('supply') ||
-        ariaLabel.toLowerCase().includes('demand') ||
-        ariaLabel.toLowerCase().includes('menu') ||
-        ariaLabel.toLowerCase().includes('options') ||
-        dataId.includes('dropdown') ||
-        dataId.includes('menu') ||
-        dataId.includes('visual') ||
-        dataId.includes('analysis')) {
-      
-      buttonList.push({
-        index: index + 1,
-        ariaLabel,
-        dataId,
-        title,
-        className: className.substring(0, 80),
-        text,
-        element: button
-      });
+    // Show ALL buttons, not just filtered ones
+    buttonList.push({
+      index: index + 1,
+      ariaLabel,
+      dataId,
+      title,
+      className: className.substring(0, 80),
+      text,
+      isVisible,
+      element: button
+    });
+  });
+  
+  // Show all buttons first
+  console.log('📋 ALL BUTTONS (including hidden):');
+  buttonList.forEach((btn, idx) => {
+    if (btn.dataId.includes('analysis_visual_dropdown_menu_button') || 
+        btn.ariaLabel.includes('Supply') || 
+        btn.ariaLabel.includes('Demand')) {
+      console.log(`  ${idx + 1}. Button #${btn.index}:`);
+      console.log(`     visible: ${btn.isVisible}`);
+      console.log(`     aria-label: "${btn.ariaLabel}"`);
+      console.log(`     data-automation-id: "${btn.dataId}"`);
+      console.log(`     title: "${btn.title}"`);
+      console.log(`     className: "${btn.className}"`);
+      console.log(`     text: "${btn.text}"`);
+      console.log(`     ────────────────────────────────────────`);
     }
   });
   
-  buttonList.forEach((btn, idx) => {
-    console.log(`  ${idx + 1}. Button #${btn.index}:`);
-    console.log(`     aria-label: "${btn.ariaLabel}"`);
-    console.log(`     data-automation-id: "${btn.dataId}"`);
-    console.log(`     title: "${btn.title}"`);
-    console.log(`     className: "${btn.className}"`);
-    console.log(`     text: "${btn.text}"`);
-    console.log(`     ────────────────────────────────────────`);
-  });
+  // Also check for any elements with the specific data-automation-id
+  console.log('🎯 SPECIFIC SEARCH:');
+  const specificButton = document.querySelector('[data-automation-id="analysis_visual_dropdown_menu_button"]');
+  if (specificButton) {
+    console.log('✅ Found analysis_visual_dropdown_menu_button!');
+    console.log(`   visible: ${specificButton.offsetParent !== null}`);
+    console.log(`   aria-label: "${specificButton.getAttribute('aria-label')}"`);
+  } else {
+    console.log('❌ analysis_visual_dropdown_menu_button NOT FOUND');
+  }
   
   return buttonList;
 }
