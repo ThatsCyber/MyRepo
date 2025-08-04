@@ -1117,16 +1117,26 @@ class MainWindow(QMainWindow):
                         item = QTableWidgetItem(str(value))
                         item.setFont(font)
                         
-                        # Special handling for Name column with sister sites
+                        # Set alignment based on column type
                         if column_name == 'Name' and '\n' in str(value):
                             # Multi-line text for sister sites - align to top-left
                             item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+                        elif column_name in ['Demand', 'Full Day Demand', 'Supply', 'Balance', 'Slips Available', 'Capacity', 'Usage', 'Utilization', 'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs']:
+                            # Center align numerical columns for consistency with balance tables
+                            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                         
                         # Check for negative numbers and use custom widget approach
                         is_negative = False
-                        if column_name in ['Demand', 'Full Day Demand', 'Supply', 'Balance', 'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs']:
+                        if column_name in ['Demand', 'Full Day Demand', 'Supply', 'Balance', 'Slips Available', 'Capacity', 'Usage', 'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs']:
                             try:
-                                if isinstance(value, (int, float)) and float(value) < 0:
+                                # Handle both numeric values and string values (like "Slips Available")
+                                if isinstance(value, (int, float)):
+                                    check_value = float(value)
+                                else:
+                                    # Try to convert string to float (skip "N/A")
+                                    check_value = float(value) if str(value) != 'N/A' else 0
+                                
+                                if check_value < 0:
                                     is_negative = True
                             except (ValueError, TypeError):
                                 pass

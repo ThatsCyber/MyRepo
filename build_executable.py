@@ -28,7 +28,9 @@ block_cipher = None
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=[
+        # Force include PyQt6 libraries
+    ],
     datas=[
         ('Facilities_Updated.csv', '.'),
         ('*.csv', '.'),
@@ -39,10 +41,35 @@ a = Analysis(
         'PyQt6.QtCore',
         'PyQt6.QtGui', 
         'PyQt6.QtWidgets',
+        'PyQt6.QtWidgets.QApplication',
+        'PyQt6.QtWidgets.QMainWindow',
+        'PyQt6.QtWidgets.QWidget',
+        'PyQt6.QtWidgets.QVBoxLayout',
+        'PyQt6.QtWidgets.QHBoxLayout',
+        'PyQt6.QtWidgets.QTableWidget',
+        'PyQt6.QtWidgets.QTableWidgetItem',
+        'PyQt6.QtWidgets.QLabel',
+        'PyQt6.QtWidgets.QPushButton',
+        'PyQt6.QtWidgets.QTextEdit',
+        'PyQt6.QtWidgets.QLineEdit',
+        'PyQt6.QtWidgets.QComboBox',
+        'PyQt6.QtWidgets.QCheckBox',
+        'PyQt6.QtWidgets.QProgressDialog',
+        'PyQt6.QtWidgets.QMessageBox',
+        'PyQt6.QtWidgets.QFileDialog',
+        'PyQt6.QtWidgets.QTabWidget',
+        'PyQt6.QtWidgets.QSplitter',
+        'PyQt6.QtWidgets.QHeaderView',
+        'PyQt6.QtCore.Qt',
+        'PyQt6.QtCore.QTimer',
+        'PyQt6.QtGui.QFont',
+        'PyQt6.QtGui.QColor',
         'openpyxl',
         'geopy',
         'geopy.distance',
         'qt_material',
+        'numpy',
+        're',
     ],
     hookspath=[],
     hooksconfig={},
@@ -52,6 +79,9 @@ a = Analysis(
         'tkinter',
         'PIL',
         'numpy.distutils',
+        'scipy',
+        'IPython',
+        'jupyter',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -64,24 +94,31 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='FacilityManagement',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,  # Set to True if you want to see console output for debugging
+    upx=False,  # Disable UPX compression to avoid PyQt6 issues
+    console=True,  # Set to True if you want to see console output for debugging
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
     icon=None,  # Add path to .ico file here if you have an icon
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='FacilityManagement'
 )
 '''
     
@@ -91,16 +128,33 @@ exe = EXE(
     print("✅ Created FacilityManagement.spec file")
 
 def build_executable():
-    """Build the executable using PyInstaller"""
+    """Build the executable using PyInstaller with simple command line options"""
     print("🔨 Building executable...")
     print("This may take a few minutes...")
     
     try:
-        # Run PyInstaller with the spec file
+        # Run PyInstaller with direct command line options
         result = subprocess.run([
-            sys.executable, "-m", "PyInstaller", 
+            sys.executable, "-m", "PyInstaller",
+            "--onefile",  # Create a single executable file
+            "--name=FacilityManagement",  # Name of the executable
+            "--noconsole",  # Don't show console window for final version
+            "--add-data=Facilities_Updated.csv;.",  # Include CSV files
+            "--hidden-import=PyQt6",
+            "--hidden-import=PyQt6.QtCore",
+            "--hidden-import=PyQt6.QtGui", 
+            "--hidden-import=PyQt6.QtWidgets",
+            "--hidden-import=pandas",
+            "--hidden-import=openpyxl",
+            "--hidden-import=geopy",
+            "--hidden-import=geopy.distance",
+            "--hidden-import=qt_material",
+            "--hidden-import=numpy",
+            "--exclude-module=matplotlib",
+            "--exclude-module=tkinter", 
+            "--exclude-module=PIL",
             "--clean",  # Clean build
-            "FacilityManagement.spec"
+            "main.py"  # Main script
         ], capture_output=True, text=True)
         
         if result.returncode == 0:
@@ -138,10 +192,7 @@ def main():
     # Install PyInstaller if needed
     install_pyinstaller()
     
-    # Create spec file
-    create_spec_file()
-    
-    # Build executable
+    # Build executable directly (no spec file needed)
     if build_executable():
         print("\n🎉 Build completed successfully!")
         print("Your executable is ready for distribution!")
