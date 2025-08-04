@@ -188,7 +188,7 @@ function setupEventListeners() {
       }
       
       const response = await chrome.runtime.sendMessage({
-        action: 'performSimpleDownload'
+        action: 'cartDashboardAutomation'
       });
       
       if (response.success) {

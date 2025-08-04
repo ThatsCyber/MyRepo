@@ -3,9 +3,9 @@ from PyQt6.QtWidgets import (
     QLineEdit, QPushButton, QLabel, QTextEdit,
     QTableWidget, QTableWidgetItem, QComboBox,
     QFileDialog, QMessageBox, QApplication, QSplitter,
-    QCheckBox, QHeaderView, QTabWidget
+    QCheckBox, QHeaderView, QTabWidget, QProgressDialog
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QFont
 from qt_material import apply_stylesheet
 from data_handler import DataHandler
@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
         file_layout.addStretch(20)
         
         # Auto Download button (smaller, different styling)
-        self.auto_download_btn = QPushButton("⬇ Auto Download")
+        self.auto_download_btn = QPushButton("⬇ Auto Load")
         self.auto_download_btn.setFixedHeight(25)
         self.auto_download_btn.setFixedWidth(120)  # Smaller width
         self.auto_download_btn.clicked.connect(self._auto_download_data)
@@ -222,6 +222,8 @@ class MainWindow(QMainWindow):
             if vert_header is not None:
                 vert_header.setFont(content_font)
                 vert_header.setDefaultSectionSize(30)
+                # Enable automatic row height adjustment
+                vert_header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
             
             # Make table read-only
             table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -236,9 +238,10 @@ class MainWindow(QMainWindow):
                     color: #ffffff;
                 }
                 QTableWidget::item {
-                    padding: 1px;
+                    padding: 3px;
                     background-color: #2b2b2b;
                     color: #ffffff;
+                    vertical-align: top;
                 }
                 QTableWidget::item:selected {
                     background-color: #2a5a8c;
@@ -287,6 +290,37 @@ class MainWindow(QMainWindow):
             return QColor(255, 140, 0)  # Orange
         else:
             return QColor(255, 255, 255)  # White
+    
+    def _get_best_utilization_info(self, site_name):
+        """Get utilization info for a site, handling sister site display names."""
+        if not site_name:
+            return None
+            
+        # If the site name contains newlines (sister site display), try each site individually
+        if '\n' in site_name:
+            # Split by newline - first line is main site, second line is sister sites
+            lines = site_name.split('\n')
+            main_site = lines[0].strip()
+            
+            # Try main site first
+            utilization_info = self.data_handler.get_utilization_info(main_site)
+            if utilization_info:
+                return utilization_info
+                
+            # If main site doesn't have utilization data, try sister sites
+            if len(lines) > 1:
+                sister_sites_line = lines[1].strip()
+                # Sister sites are separated by " / "
+                sister_sites = [site.strip() for site in sister_sites_line.split(' / ')]
+                for sister_site in sister_sites:
+                    utilization_info = self.data_handler.get_utilization_info(sister_site)
+                    if utilization_info:
+                        return utilization_info
+        else:
+            # Single site, try direct lookup
+            return self.data_handler.get_utilization_info(site_name)
+            
+        return None
             
     def _create_input_section(self, parent_layout):
         """Create input section with site input and action buttons."""
@@ -418,10 +452,10 @@ class MainWindow(QMainWindow):
         # Define columns and widths once
         columns = [
             'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
-            'Utilization', 'Capacity', 'Usage',
+            'Utilization', 'Capacity', 'Usage', 'Slips Available',
             'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
         ]
-        column_widths = [100, 100, 80, 80, 80, 100, 70, 70, 120, 80, 80, 80, 80]  # Added widths for utilization columns
+        column_widths = [100, 100, 80, 80, 80, 100, 70, 70, 110, 120, 80, 80, 80, 80]  # Widened Slips Available from 90 to 110
 
         # Set up tables
         for table in [self.negative_balance_table, self.positive_balance_table]:
@@ -453,97 +487,218 @@ class MainWindow(QMainWindow):
         self._update_cart_balance_tables()
         
     def _update_cart_balance_tables(self):
-        """Update both negative and positive balance tables."""
+        """Update both negative and positive balance tables with enhanced responsiveness."""
         if self.data_handler.cart_data is None:
             return
             
+        print("Updating cart balance tables...")
+        
+        # Keep UI responsive before starting
+        QApplication.processEvents()
+        
         # Get pre-filtered and sorted data from data_handler
         negative_sites = self.data_handler.get_negative_balance_sites()
         high_balance_sites = self.data_handler.get_high_balance_sites()
         
+        print(f"Updating negative balance table with {len(negative_sites)} sites...")
+        
+        # Keep UI responsive
+        QApplication.processEvents()
+        
         # Update negative balance table
         self._fill_balance_table(self.negative_balance_table, negative_sites)
+        
+        print(f"Updating positive balance table with {len(high_balance_sites)} sites...")
+        
+        # Keep UI responsive
+        QApplication.processEvents()
         
         # Update positive balance table
         self._fill_balance_table(self.positive_balance_table, high_balance_sites)
         
+        print("Cart balance tables updated successfully")
+        
     def _fill_balance_table(self, table, sites_data):
-        """Fill the balance table with site data."""
+        """Fill the balance table with site data using chunked processing for responsiveness."""
         # Define columns - this must match the data from get_all_cart_sites
         columns = [
             'Site Name', 'Region', 'Demand', 'Supply', 'Balance',
-            'Utilization', 'Capacity', 'Usage',
+            'Utilization', 'Capacity', 'Usage', 'Slips Available',
             'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
         ]
         
         numeric_columns = {
             'Demand', 'Supply', 'Balance',
-            'Capacity', 'Usage',
+            'Capacity', 'Usage', 'Slips Available',
             'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
         }
         
+        # CRITICAL: Clear all existing content first to prevent overlaps
+        table.clear()
         table.setRowCount(len(sites_data))
         table.setColumnCount(len(columns))
         table.setHorizontalHeaderLabels(columns)
         
-        # Fill data
-        for row, site_data in enumerate(sites_data):
-            for col, column in enumerate(columns):
-                if column == 'Utilization':
-                    # Get utilization info
-                    utilization_info = self.data_handler.get_utilization_info(site_data.get('Site Name', ''))
-                    if utilization_info:
-                        try:
-                            utilization = float(utilization_info['On Site Utilization'])
-                            utilization_percentage = utilization * 100
-                            value = f"{utilization_percentage:.2f}%"
-                            item = QTableWidgetItem(value)
-                            # Use our color helper method for the text color
-                            color = self._get_utilization_color(utilization_percentage)
-                            item.setForeground(color)
-                        except (ValueError, TypeError):
-                            item = QTableWidgetItem('N/A')
-                    else:
-                        item = QTableWidgetItem('N/A')
-                elif column in ['Capacity', 'Usage']:
-                    # Get utilization info for capacity and usage
-                    utilization_info = self.data_handler.get_utilization_info(site_data.get('Site Name', ''))
-                    if utilization_info:
-                        value = utilization_info.get(f'On Site {column}', 'N/A')
-                        if value != 'N/A':
+
+        
+        # Keep UI responsive before starting row processing
+        QApplication.processEvents()
+        
+        # Process rows in chunks to maintain responsiveness
+        chunk_size = 50  # Process 50 rows at a time
+        total_rows = len(sites_data)
+        
+        for chunk_start in range(0, total_rows, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, total_rows)
+            
+            print(f"Processing table rows {chunk_start + 1}-{chunk_end} of {total_rows}...")
+            
+            # Process this chunk of rows
+            for row in range(chunk_start, chunk_end):
+                site_data = sites_data[row]
+                
+                for col, column in enumerate(columns):
+                    if column == 'Utilization':
+                        # Get utilization info - handle sister sites by extracting individual site codes
+                        site_name = site_data.get('Site Name', '')
+                        utilization_info = self._get_best_utilization_info(site_name)
+                        
+                        if utilization_info:
                             try:
-                                value = int(float(value))
-                                item = QTableWidgetItem(str(value))
+                                utilization = float(utilization_info['On Site Utilization'])
+                                utilization_percentage = utilization * 100
+                                value = f"{utilization_percentage:.2f}%"
+                                
+                                # Use custom widget for utilization (same as other tables)
+                                widget = QWidget()
+                                layout = QHBoxLayout(widget)
+                                layout.setContentsMargins(4, 2, 4, 2)
+                                
+                                label = QLabel(value)
+                                color = self._get_utilization_color(utilization_percentage)
+                                label.setStyleSheet(
+                                    f"color: rgb({color.red()}, {color.green()}, {color.blue()}); "
+                                    "background: transparent;"
+                                )
+                                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                                layout.addWidget(label)
+                                
+                                # Clear any existing item and widget first to prevent overlap
+                                table.setItem(row, col, None)  # Clear existing item
+                                table.setCellWidget(row, col, None)  # Clear any existing widget
+                                table.setCellWidget(row, col, widget)  # Set the utilization widget
+                                # Skip all remaining processing for this column
+                                continue
                             except (ValueError, TypeError):
-                                item = QTableWidgetItem('N/A')
+                                pass
+                        
+                        # If we get here, create N/A item and let it process normally
+                        item = QTableWidgetItem('N/A')
+                    elif column in ['Capacity', 'Usage', 'Slips Available']:
+                        # Get utilization info for capacity, usage, and slips available - handle sister sites
+                        site_name = site_data.get('Site Name', '')
+                        utilization_info = self._get_best_utilization_info(site_name)
+                        if utilization_info:
+                            if column == 'Slips Available':
+                                # Calculate Slips Available = Capacity - Usage
+                                try:
+                                    capacity = float(utilization_info.get('On Site Capacity', 0))
+                                    usage = float(utilization_info.get('On Site Usage', 0))
+                                    slips_available = capacity - usage
+                                    item = QTableWidgetItem(f"{int(slips_available)}")  # Remove decimal formatting
+                                except (ValueError, TypeError):
+                                    item = QTableWidgetItem('N/A')
+                            else:
+                                value = utilization_info.get(f'On Site {column}', 'N/A')
+                                if value != 'N/A':
+                                    try:
+                                        value = int(float(value))  # Remove decimal formatting
+                                        item = QTableWidgetItem(str(value))
+                                    except (ValueError, TypeError):
+                                        item = QTableWidgetItem('N/A')
+                                else:
+                                    item = QTableWidgetItem('N/A')
                         else:
                             item = QTableWidgetItem('N/A')
                     else:
-                        item = QTableWidgetItem('N/A')
-                else:
-                    value = site_data.get(column, 0 if column in numeric_columns else '')
-                    # Format value based on column type
+                        value = site_data.get(column, 0 if column in numeric_columns else '')
+                        # Format value based on column type
+                        if column in numeric_columns:
+                            try:
+                                float_value = float(value)
+                                formatted_value = f"{int(float_value)}"  # Remove decimal formatting
+                                item = QTableWidgetItem(formatted_value)
+                                # Note: Red text for negatives applied after bold formatting below
+                            except (ValueError, TypeError):
+                                item = QTableWidgetItem("0")
+                        else:
+                            item = QTableWidgetItem(str(value))
+                    
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    
+                    # Check if this is a cart site and make the entire row bold
+                    site_name = site_data.get('Site Name', '')
+                    is_cart_site = site_name and self.data_handler.get_site_info(site_name) and self.data_handler.get_site_info(site_name).get('is_cart_site', False)
+                    
+                    # Check if this is a negative number that needs red text
+                    is_negative = False
+                    negative_value = 0
                     if column in numeric_columns:
                         try:
-                            float_value = float(value)
-                            item = QTableWidgetItem(f"{float_value:.2f}")
+                            # For calculated columns like "Slips Available", use the item text
+                            if column == 'Slips Available':
+                                value = float(item.text()) if item.text() != 'N/A' else 0
+                            else:
+                                # For other columns, use original site_data
+                                raw_value = site_data.get(column, 0)
+                                value = float(raw_value)
+                            
+                            if value < 0:
+                                is_negative = True
+                                negative_value = value
                         except (ValueError, TypeError):
-                            item = QTableWidgetItem("0.00")
+                            pass
+                    
+                    # Apply formatting: Bold + Red if needed
+                    if is_cart_site:
+                        font = item.font()
+                        font.setBold(True)
+                        item.setFont(font)
+                    
+                    # Apply red color for negative numbers using CUSTOM WIDGET (like utilization does)
+                    if is_negative:
+                        # Create custom widget with QLabel (same as utilization approach)
+                        widget = QWidget()
+                        layout = QHBoxLayout(widget)
+                        layout.setContentsMargins(4, 2, 4, 2)
+                        
+                        # Create red label with bold text
+                        label = QLabel(item.text())
+                        red_color = QColor(255, 0, 0)  # Same red as utilization
+                        label.setStyleSheet(
+                            f"color: rgb({red_color.red()}, {red_color.green()}, {red_color.blue()}); "
+                            "background: transparent; font-weight: bold;"
+                        )
+                        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                        layout.addWidget(label)
+                        
+                        # NEVER set an item when using a custom widget - use ONLY the widget
+                        table.setCellWidget(row, col, widget)
+
                     else:
-                        item = QTableWidgetItem(str(value))
-                
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                
-                # Highlight negative balance
-                if column == 'Balance':
-                    try:
-                        balance = float(site_data.get(column, 0))
-                        if balance < 0:
-                            item.setBackground(QColor(255, 0, 0))
-                    except (ValueError, TypeError):
-                        pass
-                
-                table.setItem(row, col, item)
+                        # Apply bold formatting for cart sites (non-negative)  
+                        if is_cart_site:
+                            font = item.font()
+                            font.setBold(True)
+                            item.setFont(font)
+                        # Only set item if we're NOT using a custom widget
+                        table.setItem(row, col, item)
+            
+            # Keep UI responsive after processing each chunk
+            QApplication.processEvents()
+        
+        # After populating all rows, adjust row heights for sister sites
+        self._adjust_row_heights_for_sister_sites(table)
 
     def _create_utilization_section(self, parent_layout):
         """Create the yard utilization section with a table."""
@@ -798,79 +953,55 @@ class MainWindow(QMainWindow):
         # Split input into lines and process each line
         lines = [line.strip() for line in sites if line.strip()]
         
-        # Track consecutive appearances for start and end positions separately
-        start_site_appearances = {}  # site -> list of line numbers where it appears as start
-        end_site_appearances = {}    # site -> list of line numbers where it appears as end
-        single_site_appearances = {} # for lines without arrows
+        # New target site logic: identify most frequent site and exclude it
+        site_frequency = {}  # Count how many times each site appears
+        all_unique_sites = set()  # Track all sites that appear
         
-        for line_num, line in enumerate(lines):
-            if "->" in line:
-                start_site, end_site = line.split("->")
-                start_site = start_site.strip()
-                end_site = end_site.strip()
-                
-                if start_site not in start_site_appearances:
-                    start_site_appearances[start_site] = []
-                start_site_appearances[start_site].append(line_num)
-                
-                if end_site not in end_site_appearances:
-                    end_site_appearances[end_site] = []
-                end_site_appearances[end_site].append(line_num)
-            else:
-                site = line.strip()
-                if site not in single_site_appearances:
-                    single_site_appearances[site] = []
-                single_site_appearances[site].append(line_num)
-        
-        # Function to check if appearances are consecutive
-        def has_consecutive_appearances(line_numbers):
-            if len(line_numbers) <= 1:
-                return False
-            sorted_lines = sorted(line_numbers)
-            for i in range(1, len(sorted_lines)):
-                if sorted_lines[i] - sorted_lines[i-1] == 1:
-                    return True
-            return False
-        
-        # Create list of sites to exclude based on consecutive appearances in the same position
-        sites_to_exclude = set()
-        for site, line_nums in start_site_appearances.items():
-            if has_consecutive_appearances(line_nums):
-                sites_to_exclude.add(site)
-                
-        for site, line_nums in end_site_appearances.items():
-            if has_consecutive_appearances(line_nums):
-                sites_to_exclude.add(site)
-                
-        for site, line_nums in single_site_appearances.items():
-            if has_consecutive_appearances(line_nums):
-                sites_to_exclude.add(site)
-        
-        # Build final list of sites to display
-        all_sites = []
         for line in lines:
             if "->" in line:
                 start_site, end_site = line.split("->")
                 start_site = start_site.strip()
                 end_site = end_site.strip()
                 
-                if start_site not in sites_to_exclude and start_site not in all_sites:
-                    all_sites.append(start_site)
-                if end_site not in sites_to_exclude and end_site not in all_sites:
-                    all_sites.append(end_site)
+                # Count frequency
+                site_frequency[start_site] = site_frequency.get(start_site, 0) + 1
+                site_frequency[end_site] = site_frequency.get(end_site, 0) + 1
+                
+                # Track unique sites
+                all_unique_sites.add(start_site)
+                all_unique_sites.add(end_site)
             else:
                 site = line.strip()
-                if site not in sites_to_exclude and site not in all_sites:
-                    all_sites.append(site)
-                
-        # Use the filtered list
-        unique_sites = all_sites
+                site_frequency[site] = site_frequency.get(site, 0) + 1
+                all_unique_sites.add(site)
+        
+        # Find target sites (most frequent) - handle ties and single sites
+        target_sites = set()
+        if site_frequency:
+            max_frequency = max(site_frequency.values())
             
-        # Set up columns (added dwelling columns)
+            # If there's only one unique site, or all sites have the same frequency, show all
+            if len(all_unique_sites) == 1 or all(freq == max_frequency for freq in site_frequency.values()):
+                unique_sites = list(all_unique_sites)
+            else:
+                # Only exclude sites that appear more frequently than others
+                for site, freq in site_frequency.items():
+                    if freq == max_frequency:
+                        target_sites.add(site)
+                
+                # Build final list: all sites except the target sites (but only if there are non-targets)
+                unique_sites = []
+                for site in all_unique_sites:
+                    if site not in target_sites:
+                        unique_sites.append(site)
+        else:
+            unique_sites = []
+            
+        # Set up columns (added dwelling columns and Slips Available)
         columns = [
             'Name', 'Type', 'Address', 'Region', 
             'Demand', 'Full Day Demand', 'Supply', 'Balance',
-            'Utilization', 'Capacity', 'Usage',
+            'Utilization', 'Capacity', 'Usage', 'Slips Available',
             'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'  # Updated dwelling columns
         ]
         self.site_info_table.setColumnCount(len(columns))
@@ -879,7 +1010,7 @@ class MainWindow(QMainWindow):
         # Set column widths
         self._set_table_column_widths(
             self.site_info_table,
-            [80, 70, 200, 70, 70, 100, 70, 75, 100, 70, 70, 70, 70, 70, 70, 70]  # Updated widths for all columns
+            [80, 70, 200, 70, 70, 100, 70, 75, 100, 70, 70, 110, 70, 70, 70, 70, 70]  # Widened Slips Available from 90 to 110
         )
         
         # Clear existing rows
@@ -897,7 +1028,7 @@ class MainWindow(QMainWindow):
                 
                 # Basic info columns
                 basic_info = {
-                    'Name': site.upper(),
+                    'Name': site_info.get('display_name', site.upper()),  # Use formatted display name
                     'Type': site_info.get('type', ''),
                     'Address': site_info.get('address', ''),
                     'Region': site_info.get('region', ''),
@@ -905,10 +1036,10 @@ class MainWindow(QMainWindow):
                 
                 # Demand info columns with default values
                 demand_info = {
-                    'Demand': site_info.get('Demand', 0),
-                    'Full Day Demand': site_info.get('Full Day Demand', 0),
-                    'Supply': site_info.get('Supply', 0),
-                    'Balance': site_info.get('Balance', 0)
+                    'Demand': int(site_info.get('Demand', 0)),
+                    'Full Day Demand': int(site_info.get('Full Day Demand', 0)),
+                    'Supply': int(site_info.get('Supply', 0)),
+                    'Balance': int(site_info.get('Balance', 0))
                 }
                 
                 # Get utilization info
@@ -916,24 +1047,33 @@ class MainWindow(QMainWindow):
                 if utilization_info:
                     utilization_data = {
                         'Utilization': utilization_info['On Site Utilization'],
-                        'Capacity': utilization_info['On Site Capacity'],
-                        'Usage': utilization_info['On Site Usage']
+                        'Capacity': int(utilization_info['On Site Capacity']),  # Convert to integer
+                        'Usage': int(utilization_info['On Site Usage'])  # Convert to integer
                     }
+                    # Calculate Slips Available
+                    try:
+                        capacity = float(utilization_info['On Site Capacity'])
+                        usage = float(utilization_info['On Site Usage'])
+                        slips_available = capacity - usage
+                        utilization_data['Slips Available'] = f"{int(slips_available)}"  # Remove decimal formatting
+                    except (ValueError, TypeError):
+                        utilization_data['Slips Available'] = 'N/A'
                 else:
                     utilization_data = {
                         'Utilization': 'N/A',
                         'Capacity': 'N/A',
-                        'Usage': 'N/A'
+                        'Usage': 'N/A',
+                        'Slips Available': 'N/A'
                     }
                 
                 # Get dwelling info
                 if site_info.get('has_dwelling_data', False):
                     dwelling_data = {
-                        'Total Trailers': site_info.get('Total Trailers', 'N/A'),
-                        '<24 Hrs': site_info.get('<24 Hrs', 'N/A'),
-                        '24-72 Hrs': site_info.get('24-72 Hrs', 'N/A'),
-                        '72-168 Hrs': site_info.get('72-168 Hrs', 'N/A'),
-                        '>168 Hrs': site_info.get('>168 Hrs', 'N/A')
+                        'Total Trailers': int(site_info.get('Total Trailers', 0)) if site_info.get('Total Trailers', 0) != 'N/A' else 'N/A',
+                        '<24 Hrs': int(site_info.get('<24 Hrs', 0)) if site_info.get('<24 Hrs', 0) != 'N/A' else 'N/A',
+                        '24-72 Hrs': int(site_info.get('24-72 Hrs', 0)) if site_info.get('24-72 Hrs', 0) != 'N/A' else 'N/A',
+                        '72-168 Hrs': int(site_info.get('72-168 Hrs', 0)) if site_info.get('72-168 Hrs', 0) != 'N/A' else 'N/A',
+                        '>168 Hrs': int(site_info.get('>168 Hrs', 0)) if site_info.get('>168 Hrs', 0) != 'N/A' else 'N/A'
                     }
                 else:
                     dwelling_data = {
@@ -977,14 +1117,59 @@ class MainWindow(QMainWindow):
                         item = QTableWidgetItem(str(value))
                         item.setFont(font)
                         
-                        # Highlight negative balance
-                        if column_name == 'Balance' and isinstance(value, (int, float)) and float(value) < 0:
-                            item.setBackground(QColor(255, 0, 0))
+                        # Special handling for Name column with sister sites
+                        if column_name == 'Name' and '\n' in str(value):
+                            # Multi-line text for sister sites - align to top-left
+                            item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+                        
+                        # Check for negative numbers and use custom widget approach
+                        is_negative = False
+                        if column_name in ['Demand', 'Full Day Demand', 'Supply', 'Balance', 'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs']:
+                            try:
+                                if isinstance(value, (int, float)) and float(value) < 0:
+                                    is_negative = True
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        # Check if this is a cart site
+                        site_info = self.data_handler.get_site_info(site)
+                        is_cart_site = site_info and site_info.get('is_cart_site', False)
+                        
+                        if is_negative:
+                            # Use custom widget for negative numbers (same as balance tables)
+                            widget = QWidget()
+                            layout = QHBoxLayout(widget)
+                            layout.setContentsMargins(4, 2, 4, 2)
                             
-                        self.site_info_table.setItem(row, col, item)
+                            label = QLabel(str(value))
+                            red_color = QColor(255, 0, 0)
+                            label.setStyleSheet(
+                                f"color: rgb({red_color.red()}, {red_color.green()}, {red_color.blue()}); "
+                                "background: transparent; font-weight: bold;"
+                            )
+                            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                            layout.addWidget(label)
+                            
+                            # Clear any existing item first
+                            self.site_info_table.setItem(row, col, None)
+                            self.site_info_table.setCellWidget(row, col, widget)
+                        else:
+                            # Regular item - apply bold for cart sites
+                            if is_cart_site:
+                                font.setBold(True)
+                            item.setFont(font)
+                            
+                            # Special handling for Name column with sister sites
+                            if column_name == 'Name' and '\n' in str(value):
+                                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+                            
+                            self.site_info_table.setItem(row, col, item)
                 
         self.site_info_table.resizeColumnsToContents()
         
+        # After populating all rows, adjust row heights for sister sites
+        self._adjust_row_heights_for_sister_sites(self.site_info_table)
+
     def _find_nearby_sites(self):
         """Find nearby sites."""
         site = self.site_input.toPlainText().strip().split("->")[0]
@@ -1005,14 +1190,28 @@ class MainWindow(QMainWindow):
                 self.output_text.setText("No nearby sites found or invalid site")
             return
             
-        # Set up table
+        # Update nearby sites with display names
+        for site_info in nearby_sites:
+            site_name = site_info.get('name', '')
+            if site_name:
+                # Get the formatted display name for sister sites
+                full_site_info = self.data_handler.get_site_info(site_name)
+                if full_site_info and 'display_name' in full_site_info:
+                    site_info['display_name'] = full_site_info['display_name']
+                else:
+                    site_info['display_name'] = site_name
+        
+        # Set up table ONCE, outside the loop
         self.proximity_table.setRowCount(len(nearby_sites))
+        
+        # Clear all existing content (widgets and items)
+        self.proximity_table.clearContents()
         
         # Always include all columns
         columns = ['name', 'address', 'state', 'region', 'distance']
         
         # Add cart data, utilization columns, and dwelling time columns
-        columns.extend(['Demand', 'Supply', 'Balance', 'Utilization', 'Capacity', 'Usage', 'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'])
+        columns.extend(['Demand', 'Supply', 'Balance', 'Utilization', 'Capacity', 'Usage', 'Slips Available', 'Total Trailers', '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'])
             
         self.proximity_table.setColumnCount(len(columns))
         self.proximity_table.setHorizontalHeaderLabels(columns)
@@ -1020,7 +1219,7 @@ class MainWindow(QMainWindow):
         # Define numeric columns for consistent formatting
         numeric_columns = {
             'Demand', 'Supply', 'Balance', 'distance',
-            'Capacity', 'Usage', 'Total Trailers',
+            'Capacity', 'Usage', 'Slips Available', 'Total Trailers',
             '<24 Hrs', '24-72 Hrs', '72-168 Hrs', '>168 Hrs'
         }
         
@@ -1037,6 +1236,7 @@ class MainWindow(QMainWindow):
             85,   # Utilization
             70,   # Capacity
             70,   # Usage
+            110,  # Slips Available (widened from 90 to 110)
             120,  # Total Trailers (increased to match balance tables)
             70,   # <24 Hrs
             70,   # 24-72 Hrs
@@ -1060,12 +1260,16 @@ class MainWindow(QMainWindow):
                     value = dwelling_info.get(field, 'N/A') if dwelling_info else 'N/A'
                     if value != 'N/A':
                         try:
-                            value = f"{float(value):.2f}"
+                            value = f"{int(float(value))}"  # Remove decimals consistently
                         except (ValueError, TypeError):
                             value = 'N/A'
                     item = QTableWidgetItem(str(value))
+                # Special handling for name field to show sister sites
+                elif field == 'name':
+                    display_name = site_info.get('display_name', site_info.get('name', ''))
+                    item = QTableWidgetItem(str(display_name))
                 # Special handling for utilization data
-                elif field in ['Utilization', 'Capacity', 'Usage']:
+                elif field in ['Utilization', 'Capacity', 'Usage', 'Slips Available']:
                     utilization_info = self.data_handler.get_utilization_info(site_info['name'])
                     if utilization_info:
                         if field == 'Utilization':
@@ -1073,10 +1277,37 @@ class MainWindow(QMainWindow):
                                 utilization = float(utilization_info['On Site Utilization'])
                                 utilization_percentage = utilization * 100
                                 value = f"{utilization_percentage:.2f}%"
-                                item = QTableWidgetItem(value)
-                                # Use our color helper method for the text color
+                                
+                                # Use custom widget for utilization (same as balance tables)
+                                widget = QWidget()
+                                layout = QHBoxLayout(widget)
+                                layout.setContentsMargins(4, 2, 4, 2)
+                                
+                                label = QLabel(value)
                                 color = self._get_utilization_color(utilization_percentage)
-                                item.setForeground(color)
+                                label.setStyleSheet(
+                                    f"color: rgb({color.red()}, {color.green()}, {color.blue()}); "
+                                    "background: transparent;"
+                                )
+                                label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                                layout.addWidget(label)
+                                
+                                # Clear any existing item and widget first to prevent overlap
+                                self.proximity_table.setItem(row, col, None)
+                                self.proximity_table.setCellWidget(row, col, None)
+                                self.proximity_table.setCellWidget(row, col, widget)
+                                continue  # Skip normal item creation
+                            except (ValueError, TypeError):
+                                value = 'N/A'
+                                item = QTableWidgetItem(value)
+                        elif field == 'Slips Available':
+                            # Calculate Slips Available = Capacity - Usage
+                            try:
+                                capacity = float(utilization_info.get('On Site Capacity', 0))
+                                usage = float(utilization_info.get('On Site Usage', 0))
+                                slips_available = capacity - usage
+                                value = f"{int(slips_available)}"  # Remove decimal formatting
+                                item = QTableWidgetItem(value)
                             except (ValueError, TypeError):
                                 value = 'N/A'
                                 item = QTableWidgetItem(value)
@@ -1084,7 +1315,7 @@ class MainWindow(QMainWindow):
                             value = utilization_info.get(f'On Site {field}', 'N/A')
                             if value != 'N/A' and value is not None:
                                 try:
-                                    value = f"{float(value):.2f}"
+                                    value = f"{int(float(value))}"  # Remove decimal formatting
                                 except (ValueError, TypeError):
                                     value = 'N/A'
                             else:
@@ -1097,10 +1328,13 @@ class MainWindow(QMainWindow):
                     # Get the value from site_info for all other fields
                     value = site_info.get(field, '')
                     
-                    # Format numeric values consistently
+                    # Format numeric values consistently (remove decimals except for distance)
                     if field in numeric_columns and value != '':
                         try:
-                            value = f"{float(value):.2f}"
+                            if field == 'distance':
+                                value = f"{float(value):.2f}"  # Keep decimals for distance
+                            else:
+                                value = f"{int(float(value))}"  # Remove decimals for other numeric fields
                         except (ValueError, TypeError):
                             value = 'N/A'
                     
@@ -1110,16 +1344,55 @@ class MainWindow(QMainWindow):
                 item.setFont(row_font)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 
-                # Highlight negative balance
-                if field == 'Balance':
+                # Special handling for name column with sister sites
+                if field == 'name' and '\n' in str(display_name):
+                    # Multi-line text for sister sites
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+                    # Set word wrap for multi-line display
+                    item.setData(Qt.ItemDataRole.DisplayRole, display_name)
+                
+                # Check for negative numbers and use custom widget
+                is_negative = False
+                if field in numeric_columns and value != '' and value != 'N/A':
                     try:
-                        balance = float(site_info.get(field, 0))
-                        if balance < 0:
-                            item.setBackground(QColor(255, 0, 0))
+                        # Handle percentage values
+                        check_value = value.replace('%', '') if '%' in str(value) else value
+                        numeric_value = float(check_value)
+                        if numeric_value < 0:
+                            is_negative = True
                     except (ValueError, TypeError):
                         pass
+                
+                # Check if this is a cart site
+                is_cart_site = site_info.get('Demand', 0) > 0 or site_info.get('Supply', 0) > 0 or site_info.get('Balance', 0) != 0
+                
+                if is_negative:
+                    # Use custom widget for negative numbers (same as balance tables)
+                    widget = QWidget()
+                    layout = QHBoxLayout(widget)
+                    layout.setContentsMargins(4, 2, 4, 2)
                     
-                self.proximity_table.setItem(row, col, item)
+                    label = QLabel(str(value))
+                    red_color = QColor(255, 0, 0)
+                    label.setStyleSheet(
+                        f"color: rgb({red_color.red()}, {red_color.green()}, {red_color.blue()}); "
+                        "background: transparent; font-weight: bold;"
+                    )
+                    label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    layout.addWidget(label)
+                    
+                    # Clear any existing item and widget first to prevent overlap
+                    self.proximity_table.setItem(row, col, None)
+                    self.proximity_table.setCellWidget(row, col, None)
+                    self.proximity_table.setCellWidget(row, col, widget)
+                else:
+                    # Regular item - apply bold for cart sites
+                    if is_cart_site:
+                        font = item.font()
+                        font.setBold(True)
+                        item.setFont(font)
+                    
+                    self.proximity_table.setItem(row, col, item)
                 
         # Ensure headers are properly sized and aligned
         try:
@@ -1131,6 +1404,9 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"Warning: Could not configure table header: {str(e)}")
             
+        # After populating all rows, adjust row heights for sister sites
+        self._adjust_row_heights_for_sister_sites(self.proximity_table)
+        
         # Removed resizeColumnsToContents() to maintain our custom widths 
 
     def _load_dwelling_file(self):
@@ -1173,44 +1449,340 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Error", f"Failed to load TEC dwelling data: {str(e)}") 
             
     def _auto_download_data(self):
-        """Automatically download files using Playwright automation."""
+        """Automatically detect and load the most recent relevant files from Downloads folder."""
+        # Import required modules at the top so they're accessible to timer methods
+        import os
+        from pathlib import Path
+        import glob
+        from datetime import datetime
+        
         try:
-            import os
+            # Create and show loading dialog with more micro-steps
+            loading_dialog = QProgressDialog("🔍 Initializing auto load...", None, 0, 20, self)
+            loading_dialog.setWindowTitle("Auto Loading Data")
+            loading_dialog.setWindowModality(Qt.WindowModality.WindowModal)
+            loading_dialog.setCancelButton(None)  # Remove cancel button
+            loading_dialog.setMinimumDuration(0)  # Show immediately
             
-            # Import the working download function
-            try:
-                import sys
-                sys.path.append(os.path.join(os.path.dirname(__file__), 'recorded_scripts'))
-                from download_script_simple import run_download
-                
-                print("Using simple download script (no debugging required)")
-                run_download()
-                
-            except Exception as e:
+            # Style the progress dialog to make percentage text more visible
+            loading_dialog.setStyleSheet("""
+                QProgressDialog {
+                    background-color: #2b2b2b;
+                    color: #ffffff;
+                    border: 1px solid #404040;
+                }
+                QProgressDialog QLabel {
+                    color: #ffffff;
+                    background-color: transparent;
+                    font-size: 11px;
+                }
+                QProgressBar {
+                    border: 1px solid #404040;
+                    border-radius: 3px;
+                    background-color: #404040;
+                    text-align: center;
+                    color: #000000;
+                    font-weight: bold;
+                    font-size: 11px;
+                }
+                QProgressBar::chunk {
+                    background-color: #28a745;
+                    border-radius: 2px;
+                }
+            """)
+            
+            loading_dialog.setValue(0)
+            loading_dialog.show()
+            QApplication.processEvents()
+            
+            # Store dialog and data as instance variables for timer access
+            self._loading_dialog = loading_dialog
+            self._load_results = {}
+            self._loaded_count = 0
+            self._load_errors = []
+            self._current_step = 0
+            
+            # Get the user's Downloads folder
+            downloads_folder = Path.home() / "Downloads"
+            if not downloads_folder.exists():
+                loading_dialog.close()
                 QMessageBox.warning(
                     self,
-                    "Download Error",
-                    f"Error running download automation: {str(e)}\n\n"
-                    "You can run the download manually:\n"
-                    "1. Navigate to the Supply & Demand chart\n"
-                    "2. Click the 3-dots menu (⋮)\n"
-                    "3. Click 'Export to CSV'"
+                    "Downloads Folder Not Found",
+                    f"Could not find Downloads folder at: {downloads_folder}"
                 )
+                return
+            
+            # Step 1: Scan for files
+            self._loading_dialog.setLabelText("🔍 Scanning Downloads folder...")
+            self._loading_dialog.setValue(1)
+            QApplication.processEvents()
+            
+            # Define file patterns for each data type
+            file_patterns = {
+                'supply_demand': [
+                    '*supply*demand*.csv',
+                    '*supply_demand*.csv', 
+                    '*demand*.csv',
+                    '*cart*.csv'
+                ],
+                'yard_utilization': [
+                    '*yard*utilization*.csv',
+                    '*utilization*.csv',
+                    '*yard*.csv'
+                ],
+                'tec_dwelling': [
+                    '*tec*dwelling*.csv',
+                    '*dwelling*.csv',
+                    '*tec*.csv',
+                    '*all*dwelling*.csv'
+                ]
+            }
+            
+            # Function to find most recent file matching patterns
+            def find_most_recent_file(patterns):
+                all_files = []
+                for pattern in patterns:
+                    files = glob.glob(str(downloads_folder / pattern), recursive=False)
+                    all_files.extend(files)
                 
-        except ImportError:
-            QMessageBox.warning(
-                self,
-                "Missing Playwright",
-                "Playwright is not installed. Please run:\n\n"
-                "py -m pip install playwright\n"
-                "py -m playwright install chromium"
-            )
+                if not all_files:
+                    return None
+                    
+                # Sort by modification time, most recent first
+                all_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+                return all_files[0]
+            
+            # Find all files first
+            self._files_to_load = []
+            supply_demand_file = find_most_recent_file(file_patterns['supply_demand'])
+            if supply_demand_file:
+                self._files_to_load.append(('supply_demand', supply_demand_file, 'Supply & Demand'))
+            else:
+                self._load_errors.append("No Supply & Demand files found in Downloads")
+            
+            utilization_file = find_most_recent_file(file_patterns['yard_utilization'])
+            if utilization_file:
+                self._files_to_load.append(('yard_utilization', utilization_file, 'Yard Utilization'))
+            else:
+                self._load_errors.append("No Yard Utilization files found in Downloads")
+            
+            dwelling_file = find_most_recent_file(file_patterns['tec_dwelling'])
+            if dwelling_file:
+                self._files_to_load.append(('tec_dwelling', dwelling_file, 'TEC Dwelling'))
+            else:
+                self._load_errors.append("No TEC Dwelling files found in Downloads")
+            
+            # Step 2: Files found
+            self._loading_dialog.setLabelText(f"📋 Found {len(self._files_to_load)} file(s) to load...")
+            self._loading_dialog.setValue(2)
+            QApplication.processEvents()
+            
+            # Start the micro-chunked loading process
+            self._file_index = 0
+            self._current_load_step = 'start'  # Track micro-steps within file loading
+            self._load_timer = QTimer()
+            self._load_timer.setSingleShot(True)
+            self._load_timer.timeout.connect(self._process_next_load_step)
+            
+            # Small delay to show "files found" message, then start loading
+            QTimer.singleShot(300, self._load_timer.start)
+                
         except Exception as e:
+            if hasattr(self, '_loading_dialog'):
+                self._loading_dialog.close()
             QMessageBox.warning(
                 self,
-                "Error",
-                f"Error in auto download: {str(e)}"
+                "Auto Load Error",
+                f"Error during auto load: {str(e)}\n\n"
+                "You can still load files manually using the individual load buttons."
             )
+    
+    def _process_next_load_step(self):
+        """Process the next micro-step in the loading sequence."""
+        import os
+        
+        try:
+            if self._file_index >= len(self._files_to_load):
+                # All files processed, show results
+                self._show_load_results()
+                return
+            
+            file_type, file_path, display_name = self._files_to_load[self._file_index]
+            
+            # Calculate progress step (each file gets ~6 steps: read, parse, update, etc.)
+            base_step = 3 + (self._file_index * 6)
+            
+            if self._current_load_step == 'start':
+                # Step 1: Show file info
+                file_size = os.path.getsize(file_path)
+                file_size_kb = file_size / 1024
+                self._loading_dialog.setLabelText(f"📁 Preparing to load {display_name}... ({file_size_kb:.1f} KB)")
+                self._loading_dialog.setValue(base_step)
+                QApplication.processEvents()
+                self._current_load_step = 'reading'
+                QTimer.singleShot(100, self._process_next_load_step)
+                
+            elif self._current_load_step == 'reading':
+                # Step 2: Reading file
+                self._loading_dialog.setLabelText(f"📖 Reading {display_name} file...")
+                self._loading_dialog.setValue(base_step + 1)
+                QApplication.processEvents()
+                self._current_load_step = 'parsing'
+                QTimer.singleShot(50, self._process_next_load_step)
+                
+            elif self._current_load_step == 'parsing':
+                # Step 3: Parse the data (this is the heavy operation)
+                self._loading_dialog.setLabelText(f"⚙️ Parsing {display_name} data...")
+                self._loading_dialog.setValue(base_step + 2)
+                QApplication.processEvents()
+                
+                # Do the actual file loading
+                success = False
+                try:
+                    if file_type == 'supply_demand':
+                        success = self.data_handler.load_cart_data(file_path)
+                    elif file_type == 'yard_utilization':
+                        success = self.data_handler.load_utilization_data(file_path)
+                    elif file_type == 'tec_dwelling':
+                        success = self.data_handler.load_dwelling_data(file_path)
+                    
+                    if success:
+                        self._load_results[display_name] = os.path.basename(file_path)
+                        self._loaded_count += 1
+                        self._current_load_step = 'processing'
+                    else:
+                        self._load_errors.append(f"Failed to load {display_name}: {os.path.basename(file_path)}")
+                        self._current_load_step = 'next_file'
+                        
+                except Exception as e:
+                    self._load_errors.append(f"Error loading {display_name}: {str(e)}")
+                    self._current_load_step = 'next_file'
+                
+                QTimer.singleShot(50, self._process_next_load_step)
+                
+            elif self._current_load_step == 'processing':
+                # Step 4: Processing loaded data
+                self._loading_dialog.setLabelText(f"🔄 Processing {display_name} data...")
+                self._loading_dialog.setValue(base_step + 3)
+                QApplication.processEvents()
+                self._current_load_step = 'updating'
+                QTimer.singleShot(50, self._process_next_load_step)
+                
+            elif self._current_load_step == 'updating':
+                # Step 5: Update tables
+                self._loading_dialog.setLabelText(f"📊 Updating tables with {display_name}...")
+                self._loading_dialog.setValue(base_step + 4)
+                QApplication.processEvents()
+                
+                # Update tables (this can also be heavy)
+                try:
+                    self._update_cart_balance_tables()
+                except Exception as e:
+                    self._load_errors.append(f"Error updating tables for {display_name}: {str(e)}")
+                
+                self._current_load_step = 'completing'
+                QTimer.singleShot(50, self._process_next_load_step)
+                
+            elif self._current_load_step == 'completing':
+                # Step 6: Complete this file
+                self._loading_dialog.setLabelText(f"✅ Completed {display_name}")
+                self._loading_dialog.setValue(base_step + 5)
+                QApplication.processEvents()
+                self._current_load_step = 'next_file'
+                QTimer.singleShot(200, self._process_next_load_step)
+                
+            elif self._current_load_step == 'next_file':
+                # Move to next file
+                self._file_index += 1
+                self._current_load_step = 'start'
+                QTimer.singleShot(50, self._process_next_load_step)
+            
+        except Exception as e:
+            self._loading_dialog.close()
+            QMessageBox.warning(
+                self,
+                "Auto Load Error",
+                f"Error during micro-step processing: {str(e)}"
+            )
+    
+    def _show_load_results(self):
+        """Show the final results and close loading dialog."""
+        try:
+            # Final progress step
+            self._loading_dialog.setLabelText("🎉 Auto load complete!")
+            self._loading_dialog.setValue(20)
+            QApplication.processEvents()
+            
+            # Brief pause, then close
+            QTimer.singleShot(300, self._finalize_load_results)
+            
+        except Exception as e:
+            self._loading_dialog.close()
+            QMessageBox.warning(self, "Error", f"Error showing results: {str(e)}")
+    
+    def _finalize_load_results(self):
+        """Finalize the loading process and show results."""
+        try:
+            self._loading_dialog.close()
+            
+            # Show results using the same logic as before
+            if self._loaded_count > 0:
+                success_message = f"Successfully loaded {self._loaded_count} file(s):\n\n"
+                for data_type, filename in self._load_results.items():
+                    success_message += f"✅ {data_type}: {filename}\n"
+                
+                # Check what data types had no matching files found (not already loaded)
+                missing_files = []
+                if self._loaded_count < 3:  # If we didn't load all 3 types, check what files were missing
+                    if 'Supply & Demand' not in self._load_results:
+                        missing_files.append("Supply & Demand")
+                    if 'Yard Utilization' not in self._load_results:
+                        missing_files.append("Yard Utilization") 
+                    if 'TEC Dwelling' not in self._load_results:
+                        missing_files.append("TEC Dwelling")
+                
+                if missing_files:
+                    success_message += f"\n📋 Files not found in Downloads:\n"
+                    for data_type in missing_files:
+                        success_message += f"• {data_type} (no matching file found)\n"
+                
+                if self._load_errors:
+                    success_message += f"\n⚠️ Issues encountered:\n"
+                    for error in self._load_errors:
+                        success_message += f"• {error}\n"
+                
+                QMessageBox.information(
+                    self,
+                    "Auto Load Complete",
+                    success_message
+                )
+            else:
+                # No files were loaded
+                error_message = "No files could be loaded automatically.\n\n"
+                error_message += "Common file name patterns searched:\n"
+                error_message += "• Supply & Demand: files containing 'supply', 'demand', or 'cart'\n"
+                error_message += "• Yard Utilization: files containing 'yard' or 'utilization'\n"
+                error_message += "• TEC Dwelling: files containing 'tec' or 'dwelling'\n\n"
+                if self._load_errors:
+                    error_message += "Errors encountered:\n"
+                    for error in self._load_errors:
+                        error_message += f"• {error}\n"
+                
+                QMessageBox.warning(
+                    self,
+                    "Auto Load Failed", 
+                    error_message
+                )
+            
+            # Clean up instance variables
+            if hasattr(self, '_loading_dialog'):
+                delattr(self, '_loading_dialog')
+            if hasattr(self, '_load_timer'):
+                delattr(self, '_load_timer')
+                
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"Error finalizing results: {str(e)}")
     
     def _record_download_actions(self):
         """Record the download actions using Playwright."""
@@ -1441,3 +2013,23 @@ class MainWindow(QMainWindow):
             import traceback
             traceback.print_exc()
             raise e 
+
+    def _adjust_row_heights_for_sister_sites(self, table):
+        """Adjust row heights dynamically for sites with sister sites."""
+        try:
+            for row in range(table.rowCount()):
+                # Check the Name/Site Name column (usually column 0)
+                name_item = table.item(row, 0)
+                if name_item:
+                    text = name_item.text()
+                    if '\n' in text:
+                        # Sister sites found - increase row height
+                        # Calculate height based on number of lines
+                        line_count = text.count('\n') + 1
+                        row_height = max(50, line_count * 25)  # Min 50px, 25px per line
+                        table.setRowHeight(row, row_height)
+                    else:
+                        # Single site - use default height
+                        table.setRowHeight(row, 30)
+        except Exception as e:
+            print(f"Warning: Could not adjust row heights: {str(e)}") 

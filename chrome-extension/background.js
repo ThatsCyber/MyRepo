@@ -136,12 +136,111 @@ async function triggerAutoDownload() {
         console.log(`🎯 Attempting to send download message to tab ${tab.id} (${tab.url})`);
         
         const response = await chrome.tabs.sendMessage(tab.id, {
-          action: 'performSimpleDownload',
+          action: 'cartDashboardAutomation',
           timestamp: new Date().toISOString()
         });
         
         if (response && response.success) {
-          console.log(`✅ Simple download started successfully in tab ${tab.id}`);
+          console.log(`✅ Cart Dashboard Automation started successfully in tab ${tab.id}`);
+          downloadSuccessful = true;
+          await logDownloadAttempt('auto', true);
+          break; // Stop after first successful download
+        } else {
+          console.log(`⚠️ Download response from tab ${tab.id}:`, response);
+        }
+        
+      } catch (error) {
+        console.error(`❌ Error sending message to tab ${tab.id}:`, error.message);
+        
+        // If it's a "Receiving end does not exist" error, the content script isn't loaded
+        if (error.message.includes('Receiving end does not exist')) {
+          console.log(`💡 Content script not loaded in tab ${tab.id}, trying to inject...`);
+          try {
+            // Try to inject the content script
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              files: ['content.js']
+            });
+            console.log(`✅ Content script injected into tab ${tab.id}`);
+            
+            // Wait a moment for script to initialize
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Try the download again
+            const retryResponse = await chrome.tabs.sendMessage(tab.id, {
+              action: 'cartDashboardAutomation',
+              timestamp: new Date().toISOString()
+            });
+            
+            if (retryResponse && retryResponse.success) {
+              console.log(`✅ Cart Dashboard Automation started after injection in tab ${tab.id}`);
+              downloadSuccessful = true;
+              await logDownloadAttempt('auto', true);
+              break;
+            }
+            
+          } catch (injectionError) {
+            console.error(`❌ Failed to inject content script:`, injectionError);
+          }
+        }
+      }
+    }
+    
+    if (!downloadSuccessful) {
+      await logDownloadAttempt('manual', false, 'Could not connect to any QuickSight tab');
+      throw new Error('Could not establish connection to QuickSight. Please refresh the QuickSight page and try again.');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error in triggerAutoDownload:', error);
+    await logDownloadAttempt('auto', false, error.message);
+  }
+}
+
+// Trigger quick download (manual button - no page refresh)
+async function triggerQuickDownload() {
+  try {
+    // Check if extension is enabled
+    const { autoDownloadEnabled = true } = await chrome.storage.local.get('autoDownloadEnabled');
+    
+    if (!autoDownloadEnabled) {
+      console.log('⏸️ Auto download is disabled');
+      return;
+    }
+    
+    // Get QuickSight tabs (try active first, then any QuickSight tab)
+    let tabs = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+      url: ['https://us-east-1.quicksight.aws.amazon.com/*', 'https://*.quicksight.aws.amazon.com/*']
+    });
+    
+    // If no active QuickSight tab, look for any QuickSight tab
+    if (tabs.length === 0) {
+      tabs = await chrome.tabs.query({
+        url: ['https://us-east-1.quicksight.aws.amazon.com/*', 'https://*.quicksight.aws.amazon.com/*']
+      });
+    }
+    
+    if (tabs.length === 0) {
+      console.log('⚠️ No QuickSight tabs found');
+      throw new Error('No QuickSight tab found. Please open QuickSight first.');
+    }
+    
+    // Send message to content script to perform quick download
+    let downloadSuccessful = false;
+    
+    for (const tab of tabs) {
+      try {
+        console.log(`🎯 Attempting to send quick download message to tab ${tab.id} (${tab.url})`);
+        
+        const response = await chrome.tabs.sendMessage(tab.id, {
+          action: 'quickDashboardDownload',
+          timestamp: new Date().toISOString()
+        });
+        
+        if (response && response.success) {
+          console.log(`✅ Quick Dashboard Download started successfully in tab ${tab.id}`);
           downloadSuccessful = true;
           await logDownloadAttempt('manual', true);
           break; // Stop after first successful download
@@ -168,12 +267,12 @@ async function triggerAutoDownload() {
             
             // Try the download again
             const retryResponse = await chrome.tabs.sendMessage(tab.id, {
-              action: 'performSimpleDownload',
+              action: 'quickDashboardDownload',
               timestamp: new Date().toISOString()
             });
             
             if (retryResponse && retryResponse.success) {
-              console.log(`✅ Simple download started after injection in tab ${tab.id}`);
+              console.log(`✅ Quick Dashboard Download started after injection in tab ${tab.id}`);
               downloadSuccessful = true;
               await logDownloadAttempt('manual', true);
               break;
@@ -192,8 +291,8 @@ async function triggerAutoDownload() {
     }
     
   } catch (error) {
-    console.error('❌ Error in triggerAutoDownload:', error);
-    await logDownloadAttempt('auto', false, error.message);
+    console.error('❌ Error in triggerQuickDownload:', error);
+    await logDownloadAttempt('manual', false, error.message);
   }
 }
 
@@ -258,7 +357,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
       
     case 'manualDownload':
-      triggerAutoDownload().then(() => {
+      triggerQuickDownload().then(() => {
         sendResponse({ success: true });
       }).catch(error => {
         sendResponse({ success: false, error: error.message });
@@ -303,6 +402,55 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           });
         } else {
           sendResponse({ success: false, error: 'No active tab' });
+        }
+      });
+      return true;
+      
+    case 'cartDashboardAutomation':
+      // Forward to content script for test download
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (tabs[0]) {
+          chrome.tabs.sendMessage(tabs[0].id, { action: 'cartDashboardAutomation' }, (response) => {
+            if (chrome.runtime.lastError) {
+              sendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              sendResponse(response || { success: true });
+            }
+          });
+        } else {
+          sendResponse({ success: false, error: 'No active tab' });
+        }
+             });
+       return true;
+       
+    case 'activateCurrentTab':
+      // Activate the current tab to give it full browser resources
+      console.log('🔄 Background received tab activation request');
+      chrome.tabs.query({ currentWindow: true }, (tabs) => {
+        console.log(`🔍 Found ${tabs.length} tabs in current window`);
+        
+        // Find the QuickSight tab
+        const quickSightTab = tabs.find(tab => 
+          tab.url && tab.url.includes('quicksight.aws.amazon.com')
+        );
+        
+        if (quickSightTab) {
+          console.log(`🎯 Found QuickSight tab ${quickSightTab.id} - ${quickSightTab.url}`);
+          console.log(`📊 Tab is currently active: ${quickSightTab.active}`);
+          
+          chrome.tabs.update(quickSightTab.id, { active: true }, () => {
+            if (chrome.runtime.lastError) {
+              console.error('❌ Error activating tab:', chrome.runtime.lastError);
+              sendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+              console.log(`✅ Successfully activated QuickSight tab ${quickSightTab.id}`);
+              sendResponse({ success: true });
+            }
+          });
+        } else {
+          console.log('❌ Could not find QuickSight tab to activate');
+          console.log('📋 Available tabs:', tabs.map(t => ({ id: t.id, url: t.url, active: t.active })));
+          sendResponse({ success: false, error: 'QuickSight tab not found' });
         }
       });
       return true;

@@ -167,6 +167,40 @@ function stopSimpleRecording() {
   hideRecordingIndicator();
 }
 
+// Save dwelling recording to separate storage
+function saveDwellingRecording() {
+  const recordingData = {
+    menuButton: recordedMenuButton,
+    exportButton: recordedExportButton,
+    timestamp: new Date().toISOString(),
+    chartType: 'All Dwelling TEC Trailers'
+  };
+  
+  try {
+    localStorage.setItem('quicksight_dwelling_recording', JSON.stringify(recordingData));
+    console.log('✅ Dwelling recording saved successfully!');
+  } catch (error) {
+    console.error('❌ Error saving dwelling recording:', error);
+  }
+}
+
+// Save yard utilization recording to separate storage
+function saveYardUtilizationRecording() {
+  const recordingData = {
+    menuButton: recordedMenuButton,
+    exportButton: recordedExportButton,
+    timestamp: new Date().toISOString(),
+    chartType: 'Yard Utilization'
+  };
+  
+  try {
+    localStorage.setItem('quicksight_yard_recording', JSON.stringify(recordingData));
+    console.log('✅ Yard Utilization recording saved successfully!');
+  } catch (error) {
+    console.error('❌ Error saving yard utilization recording:', error);
+  }
+}
+
 // AUTOMATED DOWNLOAD using simple recording
 function performSimpleDownload() {
   console.log('🚀 Starting simple automated download...');
@@ -404,6 +438,867 @@ function proceedWithDownload() {
   setTimeout(findAndClickExport, 300);
   
   return true;
+}
+
+// AUTOMATED DOWNLOAD for All Dwelling TEC Trailers using same proven methodology
+function performDwellingDownload() {
+  console.log('🚀 Starting All Dwelling TEC Trailers automated download...');
+  console.log('📋 Using same proven automation methodology for dwelling chart');
+
+  // Step 0: First, activate the All Dwelling TEC Trailers chart to make menu buttons visible
+  console.log('🎯 Step 0: Activating All Dwelling TEC Trailers chart to reveal menu buttons...');
+  
+  // Find the All Dwelling TEC Trailers chart container/title
+  let chartElement = null;
+  
+  // Method 1: Look for the visual title container with "All Dwelling TEC Trailers" text
+  const titleContainers = document.querySelectorAll('.visual-title-container');
+  for (const container of titleContainers) {
+    const text = container.textContent?.trim();
+    if (text === 'All Dwelling TEC Trailers') {
+      chartElement = container;
+      console.log('✅ Found All Dwelling TEC Trailers chart by title container');
+      break;
+    }
+  }
+  
+  // Method 2: If not found, look for any element with aria-label="visual title" containing All Dwelling TEC Trailers
+  if (!chartElement) {
+    const visualTitles = document.querySelectorAll('[aria-label="visual title"]');
+    for (const title of visualTitles) {
+      const text = title.textContent?.trim();
+      if (text === 'All Dwelling TEC Trailers') {
+        chartElement = title;
+        console.log('✅ Found All Dwelling TEC Trailers chart by aria-label');
+        break;
+      }
+    }
+  }
+  
+  // Method 3: Broader search - look for any element containing "All Dwelling TEC Trailers" text
+  if (!chartElement) {
+    console.log('🔍 Broader search for All Dwelling TEC Trailers chart...');
+    const allElements = document.querySelectorAll('*');
+    for (const element of allElements) {
+      const text = element.textContent?.trim();
+      if (text === 'All Dwelling TEC Trailers' && element.offsetParent !== null) {
+        // Make sure it's a reasonable container (has some size)
+        const rect = element.getBoundingClientRect();
+        if (rect.width > 50 && rect.height > 20) {
+          chartElement = element;
+          console.log('✅ Found All Dwelling TEC Trailers chart by text search');
+          break;
+        }
+      }
+    }
+  }
+  
+  if (!chartElement) {
+    console.error('❌ CRITICAL: Could not find the All Dwelling TEC Trailers chart to activate');
+    console.log('💡 Make sure you are on the QuickSight dashboard with the All Dwelling TEC Trailers chart visible');
+    return false;
+  }
+  
+  // Activate the chart by simulating hover and focus
+  console.log('🖱️ Activating chart with hover and focus events...');
+  try {
+    // Create and dispatch mouse events to simulate hover
+    const mouseEnterEvent = new MouseEvent('mouseenter', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    
+    const mouseOverEvent = new MouseEvent('mouseover', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    
+    // Dispatch hover events
+    chartElement.dispatchEvent(mouseEnterEvent);
+    chartElement.dispatchEvent(mouseOverEvent);
+    
+    // Also try focus if the element can be focused
+    if (chartElement.focus && typeof chartElement.focus === 'function') {
+      chartElement.focus();
+    }
+    
+    // Try clicking on the chart area (but not the menu button yet)
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    chartElement.dispatchEvent(clickEvent);
+    
+    console.log('✅ Chart activation events dispatched');
+    
+  } catch (error) {
+    console.error('❌ Error activating chart:', error);
+    // Continue anyway, maybe the buttons are already visible
+  }
+  
+  // Wait a moment for the UI to update and show the menu buttons
+  console.log('⏳ Waiting for menu buttons to become visible...');
+  
+  setTimeout(() => {
+    proceedWithDwellingDownload();
+  }, 500); // Give it 500ms for the buttons to appear
+}
+
+function proceedWithDwellingDownload() {
+  // Step 1: Find the correct menu button using exact recorded criteria
+  console.log('🔍 Step 1: Searching for All Dwelling TEC Trailers menu button...');
+  
+  // Find by data-automation-id AND aria-label containing "All Dwelling TEC Trailers"
+  let correctMenuButton = null;
+  const allMenuButtons = document.querySelectorAll('[data-automation-id="analysis_visual_dropdown_menu_button"]');
+  
+  console.log(`📊 Found ${allMenuButtons.length} buttons with analysis_visual_dropdown_menu_button`);
+
+  // Look for the specific All Dwelling TEC Trailers button
+  for (const button of allMenuButtons) {
+    const ariaLabel = button.getAttribute('aria-label') || '';
+    console.log(`🔍 Checking button with aria-label: "${ariaLabel}"`);
+    
+    if (ariaLabel.includes('All Dwelling TEC Trailers')) {
+      correctMenuButton = button;
+      console.log('✅ Found the correct All Dwelling TEC Trailers menu button!');
+      console.log(`   - Full aria-label: "${ariaLabel}"`);
+      console.log(`   - Is visible: ${button.offsetParent !== null}`);
+      break;
+    }
+  }
+
+  if (!correctMenuButton) {
+    console.error('❌ CRITICAL: Could not find the All Dwelling TEC Trailers menu button after chart activation');
+    console.log('🔍 Available buttons with analysis_visual_dropdown_menu_button:');
+    allMenuButtons.forEach((btn, index) => {
+      const label = btn.getAttribute('aria-label') || 'No aria-label';
+      const isVisible = btn.offsetParent !== null;
+      console.log(`   ${index + 1}. "${label}" (visible: ${isVisible})`);
+    });
+    
+    // Try to provide helpful guidance
+    if (allMenuButtons.length === 0) {
+      console.log('💡 No menu buttons found even after activation. Chart may not be fully loaded.');
+      console.log('💡 Try waiting a moment and running the script again.');
+    } else {
+      console.log('💡 Menu buttons exist but none match "All Dwelling TEC Trailers". Is the chart visible on screen?');
+    }
+    return false;
+  }
+  
+  // Step 2: Click the menu button
+  console.log('🖱️ Step 2: Clicking the All Dwelling TEC Trailers menu button...');
+  try {
+    correctMenuButton.click();
+    console.log('✅ Menu button clicked successfully');
+  } catch (error) {
+    console.error('❌ Error clicking menu button:', error);
+    return false;
+  }
+
+  // Step 3: Wait for menu to appear and find export button
+  console.log('⏳ Step 3: Waiting for dropdown menu to appear...');
+  
+  // Use a more robust approach with retries
+  let attempts = 0;
+  const maxAttempts = 10;
+  const retryInterval = 200; // Check every 200ms
+  
+  const findAndClickExport = () => {
+    attempts++;
+    console.log(`🔍 Attempt ${attempts}/${maxAttempts}: Looking for export button...`);
+    
+    // Method 1: Try by data-automation-id (most reliable)
+    let exportButton = document.querySelector('[data-automation-id="dashboard_visual_dropdown_export"]');
+    
+    if (exportButton) {
+      console.log('✅ Found export button by data-automation-id');
+    } else {
+      // Method 2: Try by text content within menu items
+      console.log('🔍 Fallback: Searching by text content...');
+      const menuItems = document.querySelectorAll('li[role="menuitem"]');
+      for (const item of menuItems) {
+        const text = item.textContent?.trim();
+        if (text === 'Export to CSV') {
+          exportButton = item;
+          console.log('✅ Found export button by text content');
+          break;
+        }
+      }
+    }
+
+    if (exportButton) {
+      // Check if button is visible and clickable
+      if (exportButton.offsetParent !== null) {
+        console.log('🖱️ Step 4: Clicking export button...');
+        try {
+          exportButton.click();
+          console.log('🎉 All Dwelling TEC Trailers export button clicked successfully!');
+          console.log('📁 Download should start shortly. Check your Downloads folder.');
+          return true;
+        } catch (error) {
+          console.error('❌ Error clicking export button:', error);
+          return false;
+        }
+      } else {
+        console.log('⚠️ Export button found but not visible, retrying...');
+      }
+    } else {
+      console.log(`⚠️ Export button not found on attempt ${attempts}`);
+      
+      // Debug: Show what menu items are available
+      if (attempts === 1) {
+        const availableItems = document.querySelectorAll('li[role="menuitem"]');
+        console.log('🔍 Available menu items:');
+        availableItems.forEach((item, index) => {
+          const text = item.textContent?.trim();
+          const dataId = item.getAttribute('data-automation-id');
+          const isVisible = item.offsetParent !== null;
+          console.log(`   ${index + 1}. "${text}" (data-id: ${dataId}, visible: ${isVisible})`);
+        });
+      }
+    }
+    
+    // Retry if we haven't reached max attempts
+    if (attempts < maxAttempts) {
+      setTimeout(findAndClickExport, retryInterval);
+    } else {
+      console.error('❌ FAILED: Could not find or click export button after all attempts');
+      console.log('💡 The menu may not have opened properly or the export option might not be available');
+      return false;
+    }
+  };
+  
+  // Start looking for export button after a short delay
+  setTimeout(findAndClickExport, 300);
+  
+  return true;
+}
+
+// AUTOMATED DOWNLOAD for Yard Utilization using same proven methodology
+function performYardUtilizationDownload() {
+  console.log('🚀 Starting Yard Utilization automated download...');
+  console.log('📋 Using same proven automation methodology for yard utilization chart');
+
+  // Step 0: First, activate the Yard Utilization chart to make menu buttons visible
+  console.log('🎯 Step 0: Activating Yard Utilization chart to reveal menu buttons...');
+  
+  // Find the Yard Utilization chart container/title
+  let chartElement = null;
+  
+  // Method 1: Look for the visual title container with "Yard Utilization" text
+  const titleContainers = document.querySelectorAll('.visual-title-container');
+  for (const container of titleContainers) {
+    const text = container.textContent?.trim();
+    if (text === 'Yard Utilization') {
+      chartElement = container;
+      console.log('✅ Found Yard Utilization chart by title container');
+      break;
+    }
+  }
+  
+  // Method 2: If not found, look for any element with aria-label="visual title" containing Yard Utilization
+  if (!chartElement) {
+    const visualTitles = document.querySelectorAll('[aria-label="visual title"]');
+    for (const title of visualTitles) {
+      const text = title.textContent?.trim();
+      if (text === 'Yard Utilization') {
+        chartElement = title;
+        console.log('✅ Found Yard Utilization chart by aria-label');
+        break;
+      }
+    }
+  }
+  
+  // Method 3: Broader search - look for any element containing "Yard Utilization" text
+  if (!chartElement) {
+    console.log('🔍 Broader search for Yard Utilization chart...');
+    const allElements = document.querySelectorAll('*');
+    for (const element of allElements) {
+      const text = element.textContent?.trim();
+      if (text === 'Yard Utilization' && element.offsetParent !== null) {
+        // Make sure it's a reasonable container (has some size)
+        const rect = element.getBoundingClientRect();
+        if (rect.width > 50 && rect.height > 20) {
+          chartElement = element;
+          console.log('✅ Found Yard Utilization chart by text search');
+          break;
+        }
+      }
+    }
+  }
+  
+  if (!chartElement) {
+    console.error('❌ CRITICAL: Could not find the Yard Utilization chart to activate');
+    console.log('💡 Make sure you are on the QuickSight dashboard with the Yard Utilization chart visible');
+    return false;
+  }
+  
+  // Activate the chart by simulating hover and focus
+  console.log('🖱️ Activating chart with hover and focus events...');
+  try {
+    // Create and dispatch mouse events to simulate hover
+    const mouseEnterEvent = new MouseEvent('mouseenter', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    
+    const mouseOverEvent = new MouseEvent('mouseover', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    
+    // Dispatch hover events
+    chartElement.dispatchEvent(mouseEnterEvent);
+    chartElement.dispatchEvent(mouseOverEvent);
+    
+    // Also try focus if the element can be focused
+    if (chartElement.focus && typeof chartElement.focus === 'function') {
+      chartElement.focus();
+    }
+    
+    // Try clicking on the chart area (but not the menu button yet)
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window
+    });
+    chartElement.dispatchEvent(clickEvent);
+    
+    console.log('✅ Chart activation events dispatched');
+    
+  } catch (error) {
+    console.error('❌ Error activating chart:', error);
+    // Continue anyway, maybe the buttons are already visible
+  }
+  
+  // Wait a moment for the UI to update and show the menu buttons
+  console.log('⏳ Waiting for menu buttons to become visible...');
+  
+  setTimeout(() => {
+    proceedWithYardUtilizationDownload();
+  }, 500); // Give it 500ms for the buttons to appear
+}
+
+function proceedWithYardUtilizationDownload() {
+  // Step 1: Find the correct menu button using exact recorded criteria
+  console.log('🔍 Step 1: Searching for Yard Utilization menu button...');
+  
+  // Find by data-automation-id AND aria-label containing "Yard Utilization"
+  let correctMenuButton = null;
+  const allMenuButtons = document.querySelectorAll('[data-automation-id="analysis_visual_dropdown_menu_button"]');
+  
+  console.log(`📊 Found ${allMenuButtons.length} buttons with analysis_visual_dropdown_menu_button`);
+
+  // Look for the specific Yard Utilization button
+  for (const button of allMenuButtons) {
+    const ariaLabel = button.getAttribute('aria-label') || '';
+    console.log(`🔍 Checking button with aria-label: "${ariaLabel}"`);
+    
+    if (ariaLabel.includes('Yard Utilization')) {
+      correctMenuButton = button;
+      console.log('✅ Found the correct Yard Utilization menu button!');
+      console.log(`   - Full aria-label: "${ariaLabel}"`);
+      console.log(`   - Is visible: ${button.offsetParent !== null}`);
+      break;
+    }
+  }
+
+  if (!correctMenuButton) {
+    console.error('❌ CRITICAL: Could not find the Yard Utilization menu button after chart activation');
+    console.log('🔍 Available buttons with analysis_visual_dropdown_menu_button:');
+    allMenuButtons.forEach((btn, index) => {
+      const label = btn.getAttribute('aria-label') || 'No aria-label';
+      const isVisible = btn.offsetParent !== null;
+      console.log(`   ${index + 1}. "${label}" (visible: ${isVisible})`);
+    });
+    
+    // Try to provide helpful guidance
+    if (allMenuButtons.length === 0) {
+      console.log('💡 No menu buttons found even after activation. Chart may not be fully loaded.');
+      console.log('💡 Try waiting a moment and running the script again.');
+    } else {
+      console.log('💡 Menu buttons exist but none match "Yard Utilization". Is the chart visible on screen?');
+    }
+    return false;
+  }
+  
+  // Step 2: Click the menu button
+  console.log('🖱️ Step 2: Clicking the Yard Utilization menu button...');
+  try {
+    correctMenuButton.click();
+    console.log('✅ Menu button clicked successfully');
+  } catch (error) {
+    console.error('❌ Error clicking menu button:', error);
+    return false;
+  }
+
+  // Step 3: Wait for menu to appear and find export button
+  console.log('⏳ Step 3: Waiting for dropdown menu to appear...');
+  
+  // Use a more robust approach with retries
+  let attempts = 0;
+  const maxAttempts = 10;
+  const retryInterval = 200; // Check every 200ms
+  
+  const findAndClickExport = () => {
+    attempts++;
+    console.log(`🔍 Attempt ${attempts}/${maxAttempts}: Looking for export button...`);
+    
+    // Method 1: Try by data-automation-id (most reliable)
+    let exportButton = document.querySelector('[data-automation-id="dashboard_visual_dropdown_export"]');
+    
+    if (exportButton) {
+      console.log('✅ Found export button by data-automation-id');
+    } else {
+      // Method 2: Try by text content within menu items
+      console.log('🔍 Fallback: Searching by text content...');
+      const menuItems = document.querySelectorAll('li[role="menuitem"]');
+      for (const item of menuItems) {
+        const text = item.textContent?.trim();
+        if (text === 'Export to CSV') {
+          exportButton = item;
+          console.log('✅ Found export button by text content');
+          break;
+        }
+      }
+    }
+
+    if (exportButton) {
+      // Check if button is visible and clickable
+      if (exportButton.offsetParent !== null) {
+        console.log('🖱️ Step 4: Clicking export button...');
+        try {
+          exportButton.click();
+          console.log('🎉 Yard Utilization export button clicked successfully!');
+          console.log('📁 Download should start shortly. Check your Downloads folder.');
+          return true;
+        } catch (error) {
+          console.error('❌ Error clicking export button:', error);
+          return false;
+        }
+      } else {
+        console.log('⚠️ Export button found but not visible, retrying...');
+      }
+    } else {
+      console.log(`⚠️ Export button not found on attempt ${attempts}`);
+      
+      // Debug: Show what menu items are available
+      if (attempts === 1) {
+        const availableItems = document.querySelectorAll('li[role="menuitem"]');
+        console.log('🔍 Available menu items:');
+        availableItems.forEach((item, index) => {
+          const text = item.textContent?.trim();
+          const dataId = item.getAttribute('data-automation-id');
+          const isVisible = item.offsetParent !== null;
+          console.log(`   ${index + 1}. "${text}" (data-id: ${dataId}, visible: ${isVisible})`);
+        });
+      }
+    }
+    
+    // Retry if we haven't reached max attempts
+    if (attempts < maxAttempts) {
+      setTimeout(findAndClickExport, retryInterval);
+    } else {
+      console.error('❌ FAILED: Could not find or click export button after all attempts');
+      console.log('💡 The menu may not have opened properly or the export option might not be available');
+      return false;
+    }
+  };
+  
+  // Start looking for export button after a short delay
+  setTimeout(findAndClickExport, 300);
+  
+  return true;
+}
+
+// SEQUENTIAL DOWNLOAD FUNCTION - Downloads all three charts with delays
+function performSequentialDownload() {
+  console.log('🚀🚀🚀 Starting SEQUENTIAL download of ALL THREE charts...');
+  console.log('📋 Phase 1: Supply & Demand → Phase 2: All Dwelling TEC Trailers (15 sec delay) → Phase 3: Yard Utilization (15 sec delay)');
+  
+  // Phase 1: Download Supply & Demand
+  console.log('📊 Phase 1: Starting Supply & Demand download...');
+  performSimpleDownload();
+  
+  // Phase 2: Wait 15 seconds, then download All Dwelling TEC Trailers
+  setTimeout(() => {
+    console.log('📊 Phase 2: Starting All Dwelling TEC Trailers download...');
+    performDwellingDownload();
+    
+    // Phase 3: Wait another 15 seconds, then download Yard Utilization
+    setTimeout(() => {
+      console.log('📊 Phase 3: Starting Yard Utilization download...');
+      performYardUtilizationDownload();
+    }, 15000); // 15 second delay for third chart
+    
+  }, 15000); // 15 second delay for second chart
+  
+  console.log('⏰ Sequential download initiated!');
+  console.log('   📊 All Dwelling TEC Trailers will start in 15 seconds...');
+  console.log('   📊 Yard Utilization will start in 30 seconds...');
+}
+
+// CART DASHBOARD AUTOMATION - Simplified workflow for new 3-chart tab
+function cartDashboardAutomation() {
+  console.log('🚀🚀🚀 CART DASHBOARD AUTOMATION STARTED - SIMPLIFIED WORKFLOW!');
+  console.log('📋 Workflow: Single Refresh → Wait 10s → Download All 3 Charts (no scrolling needed)');
+  
+  // Store automation state for single refresh workflow
+  localStorage.setItem('cartDashboardAutomation_active', 'simplified_workflow');
+  localStorage.setItem('cartDashboardAutomation_startTime', Date.now().toString());
+  
+  // Step 1: Single refresh for all charts
+  console.log('🔄 Step 1: Refreshing page for all charts...');
+  location.reload();
+}
+
+// Function to continue automation after page refresh - simplified for new 3-chart tab
+function continueCartDashboardAutomationAfterRefresh() {
+  const isActive = localStorage.getItem('cartDashboardAutomation_active');
+  const startTime = localStorage.getItem('cartDashboardAutomation_startTime');
+  
+  if (isActive === 'simplified_workflow' && startTime) {
+    console.log('🔄 Detected page refresh - Starting simplified 3-chart workflow');
+    console.log('⏰ All charts are visible, no scrolling needed!');
+    
+    // Clear the flags - single workflow
+    localStorage.removeItem('cartDashboardAutomation_active');
+    localStorage.removeItem('cartDashboardAutomation_startTime');
+    
+    // Simplified workflow: Just wait and download all 3 charts
+    console.log('⏰ Step 2: Page loaded, waiting 10 seconds then downloading all charts...');
+    
+    setTimeout(() => {
+      console.log('📊 Step 3: Starting all downloads (charts are all visible)...');
+      
+      // Download Supply & Demand first
+      console.log('📊 Step 3a: Starting Supply & Demand download...');
+      performSimpleDownload();
+      
+      // Download All Dwelling TEC after 5 seconds  
+      setTimeout(() => {
+        console.log('📊 Step 3b: Starting All Dwelling TEC download...');
+        performDwellingDownload();
+      }, 5000);
+      
+      // Download Yard Utilization after 10 seconds
+      setTimeout(() => {
+        console.log('📊 Step 3c: Starting Yard Utilization download...');
+        performYardUtilizationDownload();
+        
+        console.log('🎉 SIMPLIFIED WORKFLOW COMPLETE! All 3 charts should be downloaded.');
+      }, 10000);
+      
+    }, 10000); // 10 second wait after refresh
+  }
+}
+
+// Function to scroll to a specific position
+function scrollToPosition(pixels) {
+  try {
+    console.log(`🔍 Scrolling to ${pixels}px...`);
+    
+    // Find the sheet-view container (same proven method)
+    const sheetContainer = document.querySelector('.sheet-view.flex-grow.layout.vertical');
+    
+    if (sheetContainer) {
+      console.log('✅ Found sheet-view container for scroll');
+      console.log(`   Current position: ${sheetContainer.scrollTop}px`);
+      
+      // Scroll to specified position
+      sheetContainer.scrollTop = pixels;
+      
+      console.log(`📜 Scrolled container to position: ${sheetContainer.scrollTop}px`);
+      
+      // Verify scroll worked
+      if (Math.abs(sheetContainer.scrollTop - pixels) < 50) { // Allow some tolerance
+        console.log(`✅ Scroll to ${pixels}px successful`);
+        return true;
+      } else {
+        console.log(`⚠️ Scroll may not have reached exact position (got ${sheetContainer.scrollTop}px)`);
+        return true; // Still try to continue
+      }
+    } else {
+      console.log('❌ Could not find suitable container for scrolling');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error scrolling to position:', error);
+    return false;
+  }
+}
+
+// Function to find and scroll the dashboard container
+function scrollDashboardToLoadCharts() {
+  try {
+    console.log('🔍 Finding scrollable dashboard container...');
+    
+    // Find the container with class "sheet-view flex-grow layout vertical"
+    const sheetContainer = document.querySelector('.sheet-view.flex-grow.layout.vertical');
+    
+    if (sheetContainer && sheetContainer.scrollHeight > sheetContainer.clientHeight) {
+      console.log('✅ Found sheet-view container');
+      console.log(`   Height: ${sheetContainer.scrollHeight}px, Visible: ${sheetContainer.clientHeight}px`);
+      
+      // Scroll to position 1100px to make all charts accessible
+      sheetContainer.scrollTop = 1100;
+      
+      console.log(`📜 Scrolled container to position: ${sheetContainer.scrollTop}px`);
+      
+      // Verify scroll worked
+      if (sheetContainer.scrollTop > 0) {
+        console.log('✅ Dashboard scroll successful');
+        return true;
+      } else {
+        console.log('⚠️ Dashboard scroll may not have worked (scrollTop still 0)');
+        return false;
+      }
+    } else {
+      console.log('❌ Could not find the sheet-view container');
+      
+      // Fallback: try to find any scrollable container with significant height
+      const scrollableElements = [];
+      document.querySelectorAll('*').forEach(el => {
+        if (el.scrollHeight > el.clientHeight + 1000) { // At least 1000px of scrollable content
+          scrollableElements.push(el);
+        }
+      });
+      
+      if (scrollableElements.length > 0) {
+        console.log(`🔄 Fallback: Found ${scrollableElements.length} large scrollable containers`);
+        const fallbackContainer = scrollableElements[0];
+        fallbackContainer.scrollTop = 1100;
+        console.log('📜 Used fallback container scroll');
+        return true;
+      } else {
+        console.log('❌ No suitable scrollable containers found');
+        return false;
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error during dashboard scroll:', error);
+    return false;
+  }
+}
+
+// Function to execute all three downloads with reordered workflow - Yard Utilization FIRST
+function executeAllDownloads() {
+  console.log('📊 REORDERED DOWNLOAD WORKFLOW: Yard Utilization FIRST → Scroll up → Supply & Demand → All Dwelling TEC');
+  
+  // Phase 1: Scroll to Yard Utilization immediately (while page is fresh after refresh)
+  console.log('📜 Phase 1: Scrolling to Yard Utilization first (fresh page advantage)...');
+  
+  if (scrollForYardUtilization()) {
+    // Phase 2: Download Yard Utilization first (when page is most responsive)
+    console.log('📊 Phase 2: Starting Yard Utilization download FIRST...');
+    pollForYardUtilChart(); // Poll for chart readiness
+    
+    // Phase 3: After Yard Utilization, scroll back up and download other charts
+    setTimeout(() => {
+      console.log('📜 Phase 3: Scrolling back up for Supply & Demand and All Dwelling TEC...');
+      
+      // Scroll back to top to access other charts
+      if (scrollBackToTop()) {
+        // Phase 4: Download Supply & Demand (5 seconds after scroll up)
+        setTimeout(() => {
+          console.log('📊 Phase 4: Starting Supply & Demand download...');
+          performSimpleDownload();
+          
+          // Phase 5: Download All Dwelling TEC (5 seconds after Supply & Demand)
+          setTimeout(() => {
+            console.log('📊 Phase 5: Starting All Dwelling TEC Trailers download...');
+            performDwellingDownload();
+          }, 5000);
+          
+        }, 5000);
+      } else {
+        console.log('⚠️ Scroll up failed, attempting remaining downloads anyway...');
+        setTimeout(() => {
+          performSimpleDownload();
+          setTimeout(() => performDwellingDownload(), 5000);
+        }, 2000);
+      }
+      
+    }, 25000); // Wait 25 seconds for Yard Utilization to complete
+    
+  } else {
+    console.log('⚠️ Initial scroll to Yard Utilization failed, reverting to original workflow...');
+    // Fallback to original workflow if scroll fails
+    performSimpleDownload();
+    setTimeout(() => performDwellingDownload(), 5000);
+    setTimeout(() => {
+      if (scrollForYardUtilization()) {
+        pollForYardUtilChart();
+      }
+    }, 10000);
+  }
+  
+  console.log('⏰ Reordered downloads scheduled!');
+  console.log('   📊 Yard Utilization will start FIRST (immediately after scroll)');
+  console.log('   📜 Scroll back up in 25 seconds');
+  console.log('   📊 Supply & Demand will start in 30 seconds');
+  console.log('   📊 All Dwelling TEC will start in 35 seconds');
+  console.log('✅ REORDERED WORKFLOW INITIATED!');
+}
+
+// Function to poll for Yard Utilization chart readiness
+function pollForYardUtilChart(maxAttempts = 10) {
+  console.log('🔄 Starting polling for Yard Utilization chart readiness...');
+  let attempts = 0;
+  
+  const checkInterval = setInterval(() => {
+    attempts++;
+    console.log(`🔍 Polling attempt ${attempts}/${maxAttempts} for Yard Utilization chart...`);
+    
+    // Check if chart is ready
+    const chartReady = isYardUtilChartReady();
+    
+    if (chartReady) {
+      console.log('✅ Yard Utilization chart is ready! Starting download...');
+      clearInterval(checkInterval);
+      performYardUtilizationDownload();
+    } else if (attempts >= maxAttempts) {
+      console.log('⚠️ Chart not ready after polling, attempting download anyway...');
+      clearInterval(checkInterval);
+      performYardUtilizationDownload();
+    } else {
+      console.log(`⏳ Chart not ready yet, will check again in 2 seconds...`);
+    }
+  }, 2000); // Check every 2 seconds
+}
+
+// Function to check if Yard Utilization chart is fully ready
+function isYardUtilChartReady() {
+  try {
+    // Find the chart title first
+    let chartTitleElement = null;
+    
+    // Look for the visual title container with "Yard Utilization" text
+    const titleContainers = document.querySelectorAll('.visual-title-container');
+    for (const container of titleContainers) {
+      const text = container.textContent?.trim();
+      if (text === 'Yard Utilization') {
+        chartTitleElement = container;
+        break;
+      }
+    }
+    
+    if (!chartTitleElement) {
+      console.log('📊 Chart title not found during polling');
+      return false;
+    }
+    
+    // Find the parent container and check for chart content
+    const parentContainer = chartTitleElement.closest('.visual-container, .chart-container, .visual-wrapper');
+    if (!parentContainer) {
+      console.log('📊 Chart parent container not found');
+      return false;
+    }
+    
+    // Look for actual chart content (SVG, canvas, or data elements)
+    const chartBody = parentContainer.querySelector('svg, canvas, .chart-body, .visual-body, .data-container');
+    if (!chartBody) {
+      console.log('📊 Chart body/content not found');
+      return false;
+    }
+    
+    // Check if chart has meaningful dimensions
+    const rect = chartBody.getBoundingClientRect();
+    if (rect.width < 100 || rect.height < 100) {
+      console.log(`📊 Chart dimensions too small: ${rect.width}x${rect.height}`);
+      return false;
+    }
+    
+    // Check if chart is visible in viewport (even partially)
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      console.log('📊 Chart not visible in viewport');
+      return false;
+    }
+    
+    console.log('✅ Chart appears to be fully ready');
+    return true;
+    
+  } catch (error) {
+    console.log('❌ Error checking chart readiness:', error);
+    return false;
+  }
+}
+
+// Function to scroll back to top for Supply & Demand and All Dwelling TEC charts
+function scrollBackToTop() {
+  try {
+    console.log('🔍 Scrolling back to top for Supply & Demand and All Dwelling TEC charts...');
+    
+    // Find the sheet-view container (same proven method)
+    const sheetContainer = document.querySelector('.sheet-view.flex-grow.layout.vertical');
+    
+    if (sheetContainer) {
+      console.log('✅ Found sheet-view container for scroll back to top');
+      console.log(`   Current position: ${sheetContainer.scrollTop}px`);
+      
+      // Scroll back to top
+      sheetContainer.scrollTop = 0;
+      
+      console.log(`📜 Scrolled container back to top: ${sheetContainer.scrollTop}px`);
+      
+      // Verify scroll worked
+      if (sheetContainer.scrollTop === 0) {
+        console.log('✅ Scroll back to top successful');
+        return true;
+      } else {
+        console.log('⚠️ Scroll back to top may not have worked completely');
+        return true; // Still try to continue
+      }
+    } else {
+      console.log('❌ Could not find suitable container for scroll back to top');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error scrolling back to top:', error);
+    return false;
+  }
+}
+
+// Function to scroll specifically for Yard Utilization
+function scrollForYardUtilization() {
+  try {
+    console.log('🔍 Finding container to scroll for Yard Utilization...');
+    
+    // Find the sheet-view container (same proven method)
+    const sheetContainer = document.querySelector('.sheet-view.flex-grow.layout.vertical');
+    
+    if (sheetContainer && sheetContainer.scrollHeight > sheetContainer.clientHeight) {
+      console.log('✅ Found sheet-view container for Yard Utilization scroll');
+      console.log(`   Height: ${sheetContainer.scrollHeight}px, Visible: ${sheetContainer.clientHeight}px`);
+      
+      // Scroll to 2500px specifically for Yard Utilization
+      sheetContainer.scrollTop = 2500;
+      
+      console.log(`📜 Scrolled container to position: ${sheetContainer.scrollTop}px for Yard Utilization`);
+      
+      // Verify scroll worked
+      if (sheetContainer.scrollTop > 0) {
+        console.log('✅ Yard Utilization scroll successful');
+        return true;
+      } else {
+        console.log('⚠️ Yard Utilization scroll may not have worked (scrollTop still 0)');
+        return false;
+      }
+    } else {
+      console.log('❌ Could not find suitable container for Yard Utilization scroll');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error during Yard Utilization scroll:', error);
+    return false;
+  }
 }
 
 // Visual indicator functions
@@ -804,6 +1699,36 @@ try {
   console.log('✅ performSimpleDownload assigned');
 } catch (e) { console.error('❌ Error assigning performSimpleDownload:', e); }
 
+try {
+  window.performDwellingDownload = performDwellingDownload;
+  console.log('✅ performDwellingDownload assigned');
+} catch (e) { console.error('❌ Error assigning performDwellingDownload:', e); }
+
+try {
+  window.performSequentialDownload = performSequentialDownload;
+  console.log('✅ performSequentialDownload assigned');
+} catch (e) { console.error('❌ Error assigning performSequentialDownload:', e); }
+
+try {
+  window.performYardUtilizationDownload = performYardUtilizationDownload;
+  console.log('✅ performYardUtilizationDownload assigned');
+} catch (e) { console.error('❌ Error assigning performYardUtilizationDownload:', e); }
+
+try {
+  window.performScrollTest = performScrollTest;
+  console.log('✅ performScrollTest assigned');
+} catch (e) { console.error('❌ Error assigning performScrollTest:', e); }
+
+try {
+  window.cartDashboardAutomation = cartDashboardAutomation;
+  console.log('✅ cartDashboardAutomation assigned');
+} catch (e) { console.error('❌ Error assigning cartDashboardAutomation:', e); }
+
+try {
+  window.quickDashboardDownload = quickDashboardDownload;
+  console.log('✅ quickDashboardDownload assigned');
+} catch (e) { console.error('❌ Error assigning quickDashboardDownload:', e); }
+
 // Skip the old functions for now to avoid errors
 console.log('🔧 Checkpoint 2: Core functions assigned to window');
 
@@ -853,6 +1778,24 @@ window.addEventListener('message', function(event) {
   } else if (event.data && event.data.action === 'performSimpleDownload') {
     console.log('🎯 Performing simple download via message!');
     performSimpleDownload();
+  } else if (event.data && event.data.action === 'performDwellingDownload') {
+    console.log('🎯 Performing dwelling download via message!');
+    performDwellingDownload();
+  } else if (event.data && event.data.action === 'performSequentialDownload') {
+    console.log('🎯 Performing sequential download via message!');
+    performSequentialDownload();
+  } else if (event.data && event.data.action === 'performYardUtilizationDownload') {
+    console.log('🎯 Performing yard utilization download via message!');
+    performYardUtilizationDownload();
+  } else if (event.data && event.data.action === 'performScrollTest') {
+    console.log('🎯 Performing scroll test via message!');
+    performScrollTest();
+  } else if (event.data && event.data.action === 'cartDashboardAutomation') {
+    console.log('🎯 Starting cart dashboard automation via message!');
+    cartDashboardAutomation();
+  } else if (event.data && event.data.action === 'quickDashboardDownload') {
+    console.log('🎯 Starting quick dashboard download via message!');
+    quickDashboardDownload();
   } else if (event.data && event.data.action === 'debugButtons') {
     console.log('🎯 Debugging all buttons!');
     debugAllButtons();
@@ -896,6 +1839,61 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: downloadError.message });
       }
       return true;
+    } else if (request.action === 'performDwellingDownload') {
+      console.log('🎯 Performing dwelling download from popup...');
+      try {
+        performDwellingDownload();
+        console.log('✅ Dwelling download started successfully');
+        sendResponse({ success: true });
+      } catch (dwellingError) {
+        console.error('❌ Error performing dwelling download:', dwellingError);
+        sendResponse({ success: false, error: dwellingError.message });
+      }
+      return true;
+    } else if (request.action === 'performSequentialDownload') {
+      console.log('🎯 Performing sequential download from popup...');
+      try {
+        performSequentialDownload();
+        console.log('✅ Sequential download started successfully');
+        sendResponse({ success: true });
+      } catch (sequentialError) {
+        console.error('❌ Error performing sequential download:', sequentialError);
+        sendResponse({ success: false, error: sequentialError.message });
+      }
+      return true;
+    } else if (request.action === 'performYardUtilizationDownload') {
+      console.log('🎯 Performing yard utilization download from popup...');
+      try {
+        performYardUtilizationDownload();
+        console.log('✅ Yard Utilization download started successfully');
+        sendResponse({ success: true });
+      } catch (yardError) {
+        console.error('❌ Error performing yard utilization download:', yardError);
+        sendResponse({ success: false, error: yardError.message });
+      }
+      return true;
+    } else if (request.action === 'cartDashboardAutomation') {
+      console.log('🎯 Performing cart dashboard automation from background...');
+      try {
+        cartDashboardAutomation();
+        console.log('✅ Cart Dashboard Automation started successfully');
+        sendResponse({ success: true });
+      } catch (automationError) {
+        console.error('❌ Error performing cart dashboard automation:', automationError);
+        sendResponse({ success: false, error: automationError.message });
+      }
+      return true;
+    } else if (request.action === 'quickDashboardDownload') {
+      console.log('🎯 Performing quick dashboard download from popup...');
+      try {
+        quickDashboardDownload();
+        console.log('✅ Quick Dashboard Download started successfully');
+        sendResponse({ success: true });
+      } catch (quickError) {
+        console.error('❌ Error performing quick dashboard download:', quickError);
+        sendResponse({ success: false, error: quickError.message });
+      }
+      return true;
     } else {
       console.log('⚠️ Unknown message action:', request.action);
       sendResponse({ success: false, error: 'Unknown action' });
@@ -912,19 +1910,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 setTimeout(() => {
   console.log('🎯 QuickSight Auto Downloader - Ready!');
   
+  // Check if we need to continue Cart Dashboard Automation after page refresh
+  continueCartDashboardAutomationAfterRefresh();
+  
   // Verify functions are available
   console.log('🔧 Function check:', {
     testSimpleRecordingSystem: typeof window.testSimpleRecordingSystem,
     startSimpleRecording: typeof window.startSimpleRecording,
-    performSimpleDownload: typeof window.performSimpleDownload
+    performSimpleDownload: typeof window.performSimpleDownload,
+    performDwellingDownload: typeof window.performDwellingDownload,
+    performSequentialDownload: typeof window.performSequentialDownload,
+    performYardUtilizationDownload: typeof window.performYardUtilizationDownload
   });
   
+  console.log('💡 SUPPLY & DEMAND: performSimpleDownload()');
+  console.log('💡 ALL DWELLING TEC: performDwellingDownload()');
+  console.log('💡 YARD UTILIZATION: performYardUtilizationDownload()');
+  console.log('💡 SEQUENTIAL (ALL 3): performSequentialDownload()');
+  console.log('💡 SCROLL TEST: performScrollTest()');
+  console.log('💡 🎯 CART DASHBOARD AUTOMATION: cartDashboardAutomation()');
   console.log('💡 SIMPLE RECORDING: startSimpleRecording()');
-  console.log('💡 SIMPLE DOWNLOAD: performSimpleDownload()');
   console.log('💡 TEST SYSTEM: testSimpleRecordingSystem()');
   console.log('💡 Or via messages:');
-  console.log('   window.postMessage({action: "startSimpleRecording"}, "*")');
   console.log('   window.postMessage({action: "performSimpleDownload"}, "*")');
+  console.log('   window.postMessage({action: "performDwellingDownload"}, "*")');
+  console.log('   window.postMessage({action: "performYardUtilizationDownload"}, "*")');
+  console.log('   window.postMessage({action: "performSequentialDownload"}, "*")');
+  console.log('   window.postMessage({action: "performScrollTest"}, "*")');
+  console.log('   window.postMessage({action: "cartDashboardAutomation"}, "*")');
   console.log('📅 Scheduled downloads will run automatically every 1.5 hours (7 AM - 5 PM)');
   
   // Double-check function availability
@@ -960,12 +1973,91 @@ setTimeout(() => {
     window.startSimpleRecording = startSimpleRecording;
     window.performSimpleDownload = performSimpleDownload;
     window.stopSimpleRecording = stopSimpleRecording;
+    window.performDwellingDownload = performDwellingDownload;
+    window.performSequentialDownload = performSequentialDownload;
+    window.performYardUtilizationDownload = performYardUtilizationDownload;
     
     console.log('✅ Functions re-created');
   } else {
     console.log('✅ All functions available');
   }
 }, 1000);
+
+// TEST FUNCTION: Scroll to middle and report position
+function performScrollTest() {
+  console.log('📜 SCROLL TEST: Testing scroll to middle of page...');
+  
+  // Get current scroll position
+  const currentScrollY = window.scrollY;
+  console.log(`📍 Current scroll position: ${currentScrollY}px`);
+  
+  // Calculate middle of page
+  const pageHeight = document.body.scrollHeight;
+  const viewportHeight = window.innerHeight;
+  const middlePosition = pageHeight / 2;
+  
+  console.log(`📏 Page height: ${pageHeight}px`);
+  console.log(`📱 Viewport height: ${viewportHeight}px`);
+  console.log(`🎯 Target middle position: ${middlePosition}px`);
+  
+  // Scroll to middle
+  window.scrollTo({
+    top: middlePosition,
+    behavior: 'smooth'
+  });
+  
+  // Check final position after scroll
+  setTimeout(() => {
+    const finalScrollY = window.scrollY;
+    console.log(`✅ Final scroll position: ${finalScrollY}px`);
+    console.log(`📊 Scroll distance: ${finalScrollY - currentScrollY}px`);
+    
+    // Check if Yard Utilization is now visible
+    const yardElements = document.querySelectorAll('*');
+    let foundYardChart = false;
+    for (const element of yardElements) {
+      const text = element.textContent?.trim();
+      if (text === 'Yard Utilization' && element.offsetParent !== null) {
+        const rect = element.getBoundingClientRect();
+        const isInViewport = rect.top >= 0 && rect.top <= viewportHeight;
+        console.log(`📋 Yard Utilization found: ${isInViewport ? 'IN VIEWPORT' : 'NOT IN VIEWPORT'}`);
+        console.log(`   Position from top: ${rect.top}px`);
+        foundYardChart = true;
+        break;
+      }
+    }
+    
+    if (!foundYardChart) {
+      console.log('❓ Yard Utilization chart not found or not visible');
+    }
+    
+    console.log('📜 SCROLL TEST COMPLETE');
+  }, 1000); // Wait 1 second for smooth scroll to finish
+}
+
+// QUICK DASHBOARD DOWNLOAD - Scroll and download without page refresh
+function quickDashboardDownload() {
+  console.log('⚡ QUICK DASHBOARD DOWNLOAD STARTED!');
+  console.log('📋 Workflow: Scroll to load charts → Download all 3 charts (no refresh)');
+  
+  // Step 1: Find and scroll the dashboard container
+  console.log('📜 Step 1: Finding and scrolling dashboard container...');
+  
+  if (scrollDashboardToLoadCharts()) {
+    // Step 2: Wait 10 seconds for charts to load after scroll
+    console.log('⏰ Step 2: Waiting 10 seconds for charts to load...');
+    setTimeout(() => {
+      console.log('📊 Step 3: Starting quick downloads with 5-second delays...');
+      executeAllDownloads();
+    }, 10000); // 10 second wait
+  } else {
+    console.error('❌ Failed to scroll dashboard - charts may not load properly');
+    console.log('⚠️ Attempting downloads anyway...');
+    setTimeout(() => {
+      executeAllDownloads();
+    }, 5000);
+  }
+}
 
 } catch (globalError) {
   console.error('❌ CRITICAL ERROR in content script:', globalError);
