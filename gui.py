@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QCheckBox, QHeaderView, QTabWidget, QProgressDialog
 )
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtGui import QColor, QFont, QKeySequence, QShortcut, QClipboard
 from qt_material import apply_stylesheet
 from data_handler import DataHandler
 from proximity import ProximityAnalyzer
@@ -228,6 +228,46 @@ class MainWindow(QMainWindow):
             # Make table read-only
             table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
             
+            # Enable multi-cell selection
+            table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
+            table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
+            
+            # Enable keyboard events
+            table.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            
+            # Add copy functionality with Ctrl+C using keyPressEvent override
+            original_keyPressEvent = table.keyPressEvent
+            def enhanced_keyPressEvent(event):
+                if event.matches(QKeySequence.StandardKey.Copy):
+                    self._copy_selected_cells(table)
+                    event.accept()
+                else:
+                    original_keyPressEvent(event)
+            
+            table.keyPressEvent = enhanced_keyPressEvent
+            
+            # Add Shift+scroll wheel horizontal scrolling
+            original_wheelEvent = table.wheelEvent
+            def enhanced_wheelEvent(event):
+                # Check if Shift is pressed
+                if event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                    # Convert vertical scroll to horizontal scroll
+                    horizontal_scrollbar = table.horizontalScrollBar()
+                    if horizontal_scrollbar:
+                        # Get the scroll delta (typically +/- 120 for one wheel step)
+                        delta = event.angleDelta().y()
+                        # Apply the scroll to horizontal scrollbar (invert direction for natural feel)
+                        current_value = horizontal_scrollbar.value()
+                        new_value = current_value - delta // 3  # Divide by 3 to make scrolling less sensitive
+                        horizontal_scrollbar.setValue(new_value)
+                        event.accept()
+                        return
+                
+                # Default behavior for normal scrolling
+                original_wheelEvent(event)
+            
+            table.wheelEvent = enhanced_wheelEvent
+            
             # Style the table with minimal padding and consistent dark theme colors
             table.setStyleSheet("""
                 QTableWidget {
@@ -267,6 +307,63 @@ class MainWindow(QMainWindow):
         """Set the width of each column in the table."""
         for col, width in enumerate(widths):
             table.setColumnWidth(col, width)
+    
+    def _copy_selected_cells(self, table):
+        """Copy selected cells to clipboard in a tab-separated format."""
+        try:
+            # Get selected ranges from the selection model
+            selection_model = table.selectionModel()
+            if not selection_model or not selection_model.hasSelection():
+                return
+            
+            # Get all selected indexes
+            selected_indexes = selection_model.selectedIndexes()
+            if not selected_indexes:
+                return
+            
+            # Group indexes by row and column
+            selected_positions = set()
+            for index in selected_indexes:
+                selected_positions.add((index.row(), index.column()))
+            
+            # Find the bounds of the selection
+            rows = sorted(set(pos[0] for pos in selected_positions))
+            cols = sorted(set(pos[1] for pos in selected_positions))
+            
+            # Build the clipboard text
+            clipboard_text = []
+            for row in rows:
+                row_data = []
+                for col in cols:
+                    if (row, col) in selected_positions:
+                        # Get text from either table item or custom widget
+                        text = ""
+                        
+                        # First, check if there's a custom widget at this position
+                        widget = table.cellWidget(row, col)
+                        if widget:
+                            # Try to extract text from widget (e.g., from QLabel in utilization cells)
+                            label = widget.findChild(QLabel)
+                            if label:
+                                text = label.text()
+                        else:
+                            # Use regular table item text
+                            item = table.item(row, col)
+                            if item:
+                                text = item.text()
+                        
+                        row_data.append(text)
+                    else:
+                        row_data.append("")  # Empty cell in rectangular selection
+                clipboard_text.append("\t".join(row_data))
+            
+            # Copy to clipboard
+            final_text = "\n".join(clipboard_text)
+            clipboard = QApplication.clipboard()
+            clipboard.setText(final_text)
+            
+        except Exception as e:
+            print(f"Error copying cells: {str(e)}")
             
     def _get_utilization_color(self, utilization_percentage):
         """
@@ -332,14 +429,38 @@ class MainWindow(QMainWindow):
         input_field_layout = QHBoxLayout()
         self.site_input = QTextEdit()
         self.site_input.setPlaceholderText("Enter site name")
-        self.site_input.setMaximumHeight(80)  # Smaller height
-        self.site_input.setFont(QFont("Arial", 7))  # Smaller font
+        self.site_input.setMaximumHeight(80)  # Back to original height
+        self.site_input.setFont(QFont("Arial", 7))  # Back to original smaller font
+        
+        # Original styling to match the output display below (yellow text/border)
         self.site_input.setStyleSheet("""
             QTextEdit {
                 selection-background-color: #2a5a8c;
                 selection-color: white;
             }
         """)
+        
+        # Force plain text mode to completely prevent rich formatting
+        self.site_input.setAcceptRichText(False)  # This prevents any rich text formatting
+        
+        # Additional protection: override insertFromMimeData to ensure plain text only
+        original_insertFromMimeData = self.site_input.insertFromMimeData
+        def insertPlainTextOnly(source):
+            if source.hasText():
+                # Get plain text and insert it directly
+                plain_text = source.text()
+                cursor = self.site_input.textCursor()
+                cursor.insertText(plain_text)
+            else:
+                # Fallback to original behavior for non-text data
+                original_insertFromMimeData(source)
+        
+        self.site_input.insertFromMimeData = insertPlainTextOnly
+        
+        # Add Ctrl+Enter shortcut for Check Site Info
+        shortcut = QShortcut(QKeySequence("Ctrl+Return"), self.site_input)
+        shortcut.activated.connect(self._check_cart_site)
+        
         input_field_layout.addWidget(self.site_input)
         
         # Action buttons in vertical layout
@@ -576,9 +697,15 @@ class MainWindow(QMainWindow):
                                 
                                 label = QLabel(value)
                                 color = self._get_utilization_color(utilization_percentage)
+                                
+                                # Check if this is a cart site to make utilization bold
+                                is_cart_site = site_name and self.data_handler.get_site_info(site_name) and self.data_handler.get_site_info(site_name).get('is_cart_site', False)
+                                
+                                # Build the stylesheet with conditional bold formatting
+                                font_weight = "font-weight: bold;" if is_cart_site else ""
                                 label.setStyleSheet(
                                     f"color: rgb({color.red()}, {color.green()}, {color.blue()}); "
-                                    "background: transparent;"
+                                    f"background: transparent; {font_weight}"
                                 )
                                 label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                                 layout.addWidget(label)
@@ -769,7 +896,14 @@ class MainWindow(QMainWindow):
             
             # Add percentage label
             label = QLabel(f"{utilization:.2%}")
-            label.setStyleSheet("color: white; background: transparent;")
+            
+            # Check if this is a cart site to make utilization bold
+            site_code = data['Site Code']
+            is_cart_site = site_code and self.data_handler.get_site_info(site_code) and self.data_handler.get_site_info(site_code).get('is_cart_site', False)
+            
+            # Build the stylesheet with conditional bold formatting
+            font_weight = "font-weight: bold;" if is_cart_site else ""
+            label.setStyleSheet(f"color: white; background: transparent; {font_weight}")
             
             # Layout the progress bar
             progress_layout.addWidget(background)
@@ -1106,9 +1240,15 @@ class MainWindow(QMainWindow):
                             label = QLabel(f"{utilization_percentage:.2f}%")
                             # Use our color helper method for the text color
                             color = self._get_utilization_color(utilization_percentage)
+                            
+                            # Check if this is a cart site to make utilization bold
+                            is_cart_site = site_info and site_info.get('is_cart_site', False)
+                            
+                            # Build the stylesheet with conditional bold formatting
+                            font_weight = "font-weight: bold;" if is_cart_site else ""
                             label.setStyleSheet(
                                 f"color: rgb({color.red()}, {color.green()}, {color.blue()}); "
-                                "background: transparent;"
+                                f"background: transparent; {font_weight}"
                             )
                         progress_layout.addWidget(label)
                         
@@ -1373,9 +1513,6 @@ class MainWindow(QMainWindow):
                     except (ValueError, TypeError):
                         pass
                 
-                # Check if this is a cart site
-                is_cart_site = site_info.get('Demand', 0) > 0 or site_info.get('Supply', 0) > 0 or site_info.get('Balance', 0) != 0
-                
                 if is_negative:
                     # Use custom widget for negative numbers (same as balance tables)
                     widget = QWidget()
@@ -1386,7 +1523,7 @@ class MainWindow(QMainWindow):
                     red_color = QColor(255, 0, 0)
                     label.setStyleSheet(
                         f"color: rgb({red_color.red()}, {red_color.green()}, {red_color.blue()}); "
-                        "background: transparent; font-weight: bold;"
+                        "background: transparent;"
                     )
                     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     layout.addWidget(label)
@@ -1396,12 +1533,7 @@ class MainWindow(QMainWindow):
                     self.proximity_table.setCellWidget(row, col, None)
                     self.proximity_table.setCellWidget(row, col, widget)
                 else:
-                    # Regular item - apply bold for cart sites
-                    if is_cart_site:
-                        font = item.font()
-                        font.setBold(True)
-                        item.setFont(font)
-                    
+                    # Regular item - no bold formatting in proximity table
                     self.proximity_table.setItem(row, col, item)
                 
         # Ensure headers are properly sized and aligned
